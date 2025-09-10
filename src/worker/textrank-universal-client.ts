@@ -1,0 +1,600 @@
+import { 
+  WorkerMessage, 
+  WorkerTaskConfig, 
+  WorkerResult, 
+  WorkerOptions, 
+  WorkerType,
+  WorkerStatus,
+  SyncModeHandlers,
+  TextRankResult,
+  ErrorType
+} from '../types';
+import { dataTransfer } from '../utils/data-transfer';
+import { mainThreadScheduler } from '../utils/main-thread-scheduler';
+import { TextRankKeyword } from '../core/textrank-keyword';
+import { TextRankSentence } from '../core/textrank-sentence';
+import { safeSync, safeAsync, ok, errOf } from '../utils/result-helpers';
+
+/**
+ * 通用 TextRank Worker 客户端
+ * 支持三级降级策略：SharedWorker → DedicatedWorker → SyncMode
+ */
+export class TextRankUniversalClient {
+  private workerUrl: string;
+  private options: Required<WorkerOptions>;
+  private currentWorkerType: WorkerType;
+  private worker: Worker | SharedWorker | null = null;
+  private sharedWorkerPort: MessagePort | null = null;
+  private pendingTasks = new Map<string, {
+    resolve: (result: WorkerResult) => void;
+    reject: (error: Error) => void;
+    timeout: ReturnType<typeof setTimeout>;
+  }>();
+  private syncHandlers: SyncModeHandlers | null = null;
+  private connectionCount = 0;
+  private isInitialized = false;
+
+  constructor(workerUrl: string, options: WorkerOptions = {}) {
+    this.workerUrl = workerUrl;
+    this.options = {
+      timeout: options.timeout || 30000,
+      maxConcurrent: options.maxConcurrent || 10,
+      preferredWorkerType: options.preferredWorkerType || 'auto',
+      fallbackToSync: options.fallbackToSync !== false,
+      syncScheduling: options.syncScheduling || {
+        timeSlice: 5,
+        maxContinuousTime: 16,
+        priority: 'background',
+        idleTimeout: 50
+      }
+    };
+
+    // 根据用户偏好和环境支持选择 Worker 类型
+    this.currentWorkerType = this.selectWorkerType();
+    
+    // 初始化同步模式处理器
+    this.initSyncHandlers();
+    
+    // 立即初始化 Worker
+    this.initializeWorker();
+  }
+
+  /**
+   * 选择最佳的 Worker 类型
+   */
+  private selectWorkerType(): WorkerType {
+    const supportStatus = dataTransfer.getSupportStatus();
+    const recommended = dataTransfer.getRecommendedWorkerType();
+
+    // 如果用户指定了类型，尝试使用
+    if (this.options.preferredWorkerType !== 'auto') {
+      switch (this.options.preferredWorkerType) {
+        case 'shared':
+          return supportStatus.sharedWorker ? WorkerType.SHARED : recommended;
+        case 'dedicated':
+          return supportStatus.worker ? WorkerType.DEDICATED : recommended;
+        default:
+          return recommended;
+      }
+    }
+
+    return recommended;
+  }
+
+  /**
+   * 初始化同步模式处理器
+   */
+  private initSyncHandlers(): void {
+    this.syncHandlers = {
+      analyzeKeywords: async (text: string, config?: any, options?: any) => {
+        const taskResult = await mainThreadScheduler.scheduleTask(async () => {
+          const tr4w = new TextRankKeyword();
+          tr4w.analyze(text, config);
+          
+          const result: any = {};
+          
+          if (options?.keywords) {
+            result.keywords = tr4w.getKeywords(
+              options.keywords.num || 10,
+              options.keywords.wordMinLen || 1
+            );
+          }
+          
+          if (options?.keyphrases) {
+            result.keyphrases = tr4w.getKeyphrases(
+              options.keyphrases.keywordsNum || 12,
+              options.keyphrases.minOccurNum || 2
+            );
+          }
+          
+          return result;
+        }, this.options.syncScheduling || {});
+        
+        if (taskResult.isErr()) {
+          throw new Error(`关键词分析失败: ${taskResult.error.message}`);
+        }
+        return taskResult.value;
+      },
+
+      analyzeSentences: async (text: string, config?: any, options?: any) => {
+        const taskResult = await mainThreadScheduler.scheduleTask(async () => {
+          const tr4s = new TextRankSentence();
+          tr4s.analyze(text, config);
+          
+          const result: any = {};
+          
+          if (options?.sentences) {
+            result.sentences = tr4s.getKeySentences(
+              options.sentences.num || 5,
+              options.sentences.sentenceMinLen || 6
+            );
+          }
+          
+          if (options?.summary) {
+            result.summary = tr4s.getSummary(
+              options.summary.num || 3,
+              options.summary.sentenceMinLen || 6,
+              options.summary.sortByIndex !== false
+            );
+          }
+          
+          return result;
+        }, this.options.syncScheduling || {});
+        
+        if (taskResult.isErr()) {
+          throw new Error(`句子分析失败: ${taskResult.error.message}`);
+        }
+        return taskResult.value;
+      }
+    };
+  }
+
+  /**
+   * 初始化 Worker
+   */
+  private async initializeWorker(): Promise<TextRankResult<void>> {
+    const initResult = await safeAsync(async () => {
+      if (this.currentWorkerType === WorkerType.SYNC) {
+        console.log('TextRank4ZH-TS: 使用同步模式处理');
+        this.isInitialized = true;
+        return;
+      }
+
+      if (this.currentWorkerType === WorkerType.SHARED) {
+        await this.initSharedWorker();
+      } else {
+        await this.initDedicatedWorker();
+      }
+
+      this.isInitialized = true;
+      console.log(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化成功`);
+    }, ErrorType.WORKER_ERROR, { workerType: this.currentWorkerType });
+
+    if (initResult.isErr()) {
+      console.warn(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化失败:`, initResult.error.message);
+      const fallbackResult = await this.fallbackToNextWorkerType();
+      return fallbackResult;
+    }
+    
+    return initResult;
+  }
+
+  /**
+   * 初始化 SharedWorker
+   */
+  private async initSharedWorker(): Promise<void> {
+    const initResult = await safeAsync(async () => {
+      this.worker = new SharedWorker(this.workerUrl, { type: 'module' });
+      this.sharedWorkerPort = (this.worker as SharedWorker).port;
+      
+      this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
+      this.sharedWorkerPort.addEventListener('messageerror', ((error: Event) => {
+        this.handleError(error as ErrorEvent);
+      }) as EventListener);
+      
+      this.sharedWorkerPort.start();
+      this.connectionCount++;
+      
+      await this.waitForWorkerReady();
+    }, ErrorType.WORKER_ERROR, { workerType: 'SharedWorker', url: this.workerUrl });
+
+    if (initResult.isErr()) {
+      throw new Error(`SharedWorker 初始化失败: ${initResult.error.message}`);
+    }
+  }
+
+  /**
+   * 初始化专用 Worker
+   */
+  private async initDedicatedWorker(): Promise<void> {
+    const initResult = await safeAsync(async () => {
+      this.worker = new Worker(this.workerUrl, { type: 'module' });
+      
+      this.worker.onmessage = this.handleMessage.bind(this);
+      this.worker.onerror = this.handleError.bind(this);
+      
+      await this.waitForWorkerReady();
+    }, ErrorType.WORKER_ERROR, { workerType: 'DedicatedWorker', url: this.workerUrl });
+
+    if (initResult.isErr()) {
+      throw new Error(`DedicatedWorker 初始化失败: ${initResult.error.message}`);
+    }
+  }
+
+  /**
+   * 等待 Worker 准备就绪
+   */
+  private waitForWorkerReady(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Worker 初始化超时'));
+      }, 5000);
+
+      const checkReady = () => {
+        clearTimeout(timeout);
+        resolve();
+      };
+
+      // 发送测试消息
+      this.postMessage({
+        id: 'init-test',
+        type: 'analyze_keywords',
+        payload: { text: '', config: {}, options: {} }
+      }).then(checkReady).catch(reject);
+    });
+  }
+
+  /**
+   * 降级到下一个 Worker 类型
+   */
+  private async fallbackToNextWorkerType(): Promise<TextRankResult<void>> {
+    console.warn(`TextRank4ZH-TS: 正在从 ${this.currentWorkerType} 降级...`);
+
+    return await safeAsync(async () => {
+      if (this.currentWorkerType === WorkerType.SHARED) {
+        this.currentWorkerType = WorkerType.DEDICATED;
+        console.log('TextRank4ZH-TS: 降级到 DedicatedWorker');
+      } else if (this.currentWorkerType === WorkerType.DEDICATED) {
+        if (this.options.fallbackToSync) {
+          this.currentWorkerType = WorkerType.SYNC;
+          console.log('TextRank4ZH-TS: 降级到同步模式');
+        } else {
+          throw new Error('Worker 不可用且未启用同步模式降级');
+        }
+      } else {
+        throw new Error('所有 Worker 类型都不可用');
+      }
+
+      const initResult = await this.initializeWorker();
+      if (initResult.isErr()) {
+        throw new Error(`降级后初始化失败: ${initResult.error.message}`);
+      }
+    }, ErrorType.WORKER_ERROR, { originalType: this.currentWorkerType, fallback: true });
+  }
+
+  /**
+   * 处理消息
+   */
+  private handleMessage(event: MessageEvent): void {
+    const message: WorkerMessage = event.data;
+    const task = this.pendingTasks.get(message.id);
+
+    if (!task) return;
+
+    if (message.type === 'error') {
+      clearTimeout(task.timeout);
+      this.pendingTasks.delete(message.id);
+      task.reject(new Error(message.payload?.error || '未知错误'));
+    } else if (message.type === 'result') {
+      clearTimeout(task.timeout);
+      this.pendingTasks.delete(message.id);
+      
+      // 处理可能的 Transferable 数据
+      const processedData = dataTransfer.processReceivedData(message.payload);
+      
+      task.resolve({
+        id: message.id,
+        success: true,
+        data: processedData,
+        duration: message.payload?.duration
+      });
+    }
+  }
+
+  /**
+   * 处理错误
+   */
+  private handleError(error: ErrorEvent): void {
+    console.error('TextRank4ZH-TS Worker 错误:', error);
+    
+    // 清理所有待处理任务
+    this.pendingTasks.forEach(task => {
+      clearTimeout(task.timeout);
+      task.reject(new Error(`Worker 错误: ${error.message}`));
+    });
+    this.pendingTasks.clear();
+  }
+
+  /**
+   * 发送消息到 Worker
+   */
+  private async postMessage(message: WorkerMessage): Promise<void> {
+    if (this.currentWorkerType === WorkerType.SYNC) {
+      // 同步模式不需要发送消息
+      return Promise.resolve();
+    }
+
+    const { transferData, transferables } = dataTransfer.prepareDataForTransfer(message.payload);
+    
+    const finalMessage: WorkerMessage = {
+      ...message,
+      payload: transferData
+    };
+
+    if (this.currentWorkerType === WorkerType.SHARED && this.sharedWorkerPort) {
+      if (transferables && transferables.length > 0) {
+        this.sharedWorkerPort.postMessage(finalMessage, transferables);
+      } else {
+        this.sharedWorkerPort.postMessage(finalMessage);
+      }
+    } else if (this.worker && this.currentWorkerType === WorkerType.DEDICATED) {
+      if (transferables && transferables.length > 0) {
+        (this.worker as Worker).postMessage(finalMessage, transferables);
+      } else {
+        (this.worker as Worker).postMessage(finalMessage);
+      }
+    }
+  }
+
+  /**
+   * 关键词分析
+   */
+  async analyzeKeywords(
+    text: string,
+    config?: any,
+    options?: any
+  ): Promise<WorkerResult> {
+    if (!this.isInitialized) {
+      throw new Error('Worker 客户端未初始化');
+    }
+
+    if (this.currentWorkerType === WorkerType.SYNC && this.syncHandlers) {
+      const startTime = Date.now();
+      const syncResult = await safeAsync(
+        () => this.syncHandlers!.analyzeKeywords(text, config, options),
+        ErrorType.COMPUTATION_ERROR,
+        { method: 'analyzeKeywords', mode: 'sync' }
+      );
+      
+      return {
+        id: `sync-${Date.now()}`,
+        success: syncResult.isOk(),
+        data: syncResult.isOk() ? syncResult.value : undefined,
+        error: syncResult.isErr() ? syncResult.error.message : undefined,
+        duration: Date.now() - startTime
+      };
+    }
+
+    return this.executeWorkerTask('analyze_keywords', { text, config, options });
+  }
+
+  /**
+   * 句子分析
+   */
+  async analyzeSentences(
+    text: string,
+    config?: any,
+    options?: any
+  ): Promise<WorkerResult> {
+    if (!this.isInitialized) {
+      throw new Error('Worker 客户端未初始化');
+    }
+
+    if (this.currentWorkerType === WorkerType.SYNC && this.syncHandlers) {
+      const startTime = Date.now();
+      const syncResult = await safeAsync(
+        () => this.syncHandlers!.analyzeSentences(text, config, options),
+        ErrorType.COMPUTATION_ERROR,
+        { method: 'analyzeSentences', mode: 'sync' }
+      );
+      
+      return {
+        id: `sync-${Date.now()}`,
+        success: syncResult.isOk(),
+        data: syncResult.isOk() ? syncResult.value : undefined,
+        error: syncResult.isErr() ? syncResult.error.message : undefined,
+        duration: Date.now() - startTime
+      };
+    }
+
+    return this.executeWorkerTask('analyze_sentences', { text, config, options });
+  }
+
+  /**
+   * 执行 Worker 任务
+   */
+  private executeWorkerTask(type: 'analyze_keywords' | 'analyze_sentences', payload: any): Promise<WorkerResult> {
+    return new Promise((resolve, reject) => {
+      if (this.pendingTasks.size >= this.options.maxConcurrent) {
+        reject(new Error('任务队列已满'));
+        return;
+      }
+
+      const id = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const timeout = setTimeout(() => {
+        this.pendingTasks.delete(id);
+        reject(new Error('任务超时'));
+      }, this.options.timeout);
+
+      this.pendingTasks.set(id, { resolve, reject, timeout });
+
+      const message: WorkerMessage = {
+        id,
+        type,
+        payload
+      };
+
+      this.postMessage(message).catch(error => {
+        clearTimeout(timeout);
+        this.pendingTasks.delete(id);
+        reject(error);
+      });
+    });
+  }
+
+  /**
+   * 获取客户端状态
+   */
+  getStatus(): WorkerStatus {
+    return {
+      type: this.currentWorkerType,
+      supported: this.currentWorkerType !== WorkerType.SYNC || this.options.fallbackToSync,
+      available: this.isInitialized,
+      connectionCount: this.currentWorkerType === WorkerType.SHARED ? this.connectionCount : undefined
+    };
+  }
+
+  /**
+   * 获取详细状态（包含调度器信息）
+   */
+  async getDetailedStatus(): Promise<WorkerStatus & {
+    schedulerStatus?: any;
+    mainThreadBusyness?: any;
+  }> {
+    const basicStatus = this.getStatus();
+    
+    if (this.currentWorkerType === WorkerType.SYNC) {
+      const [schedulerStatus, busyness] = await Promise.all([
+        Promise.resolve(mainThreadScheduler.getStatus()),
+        mainThreadScheduler.measureMainThreadBusyness()
+      ]);
+      
+      return {
+        ...basicStatus,
+        schedulerStatus,
+        mainThreadBusyness: busyness
+      };
+    }
+    
+    return basicStatus;
+  }
+
+  /**
+   * 自适应调整同步模式调度配置
+   */
+  async optimizeSyncScheduling(): Promise<TextRankResult<void>> {
+    if (this.currentWorkerType !== WorkerType.SYNC) {
+      return ok(undefined);
+    }
+
+    const optimizeResult = await safeAsync(async () => {
+      const busynessResult = await mainThreadScheduler.measureMainThreadBusyness();
+      if (busynessResult.isErr()) {
+        throw new Error(`主线程繁忙程度检测失败: ${busynessResult.error.message}`);
+      }
+      
+      const busyness = busynessResult.value;
+      const currentScheduling = this.options.syncScheduling || {};
+      
+      switch (busyness.recommendation) {
+        case 'aggressive':
+          this.options.syncScheduling = {
+            ...currentScheduling,
+            timeSlice: 10,
+            maxContinuousTime: 32,
+            priority: 'normal'
+          };
+          break;
+          
+        case 'moderate':
+          this.options.syncScheduling = {
+            ...currentScheduling,
+            timeSlice: 5,
+            maxContinuousTime: 16,
+            priority: 'background'
+          };
+          break;
+          
+        case 'conservative':
+          this.options.syncScheduling = {
+            ...currentScheduling,
+            timeSlice: 2,
+            maxContinuousTime: 8,
+            priority: 'background',
+            idleTimeout: 20
+          };
+          break;
+      }
+
+      console.log(`TextRank4ZH-TS: 根据主线程繁忙程度 (${busyness.averageFrameTime.toFixed(2)}ms) 调整为 ${busyness.recommendation} 调度策略`);
+    }, ErrorType.COMPUTATION_ERROR, { feature: 'sync-scheduling-optimization' });
+
+    if (optimizeResult.isErr()) {
+      console.warn('TextRank4ZH-TS: 主线程繁忙程度检测失败', optimizeResult.error.message);
+    }
+    
+    return optimizeResult;
+  }
+
+  /**
+   * 获取待处理任务数量
+   */
+  getPendingTasksCount(): number {
+    return this.pendingTasks.size;
+  }
+
+  /**
+   * 终止 Worker
+   */
+  terminate(): void {
+    // 清理所有待处理任务
+    this.pendingTasks.forEach(task => {
+      clearTimeout(task.timeout);
+      task.reject(new Error('Worker 已终止'));
+    });
+    this.pendingTasks.clear();
+
+    if (this.worker) {
+      if (this.currentWorkerType === WorkerType.SHARED) {
+        // SharedWorker 只关闭端口，不终止 Worker
+        if (this.sharedWorkerPort) {
+          this.sharedWorkerPort.close();
+          this.sharedWorkerPort = null;
+        }
+        this.connectionCount--;
+      } else if (this.currentWorkerType === WorkerType.DEDICATED) {
+        (this.worker as Worker).terminate();
+      }
+      
+      this.worker = null;
+    }
+
+    this.isInitialized = false;
+  }
+
+  /**
+   * 检查是否支持指定的 Worker 类型
+   */
+  static supportsWorkerType(type: WorkerType): boolean {
+    const supportStatus = dataTransfer.getSupportStatus();
+    
+    switch (type) {
+      case WorkerType.SHARED:
+        return supportStatus.sharedWorker;
+      case WorkerType.DEDICATED:
+        return supportStatus.worker;
+      case WorkerType.SYNC:
+        return true; // 同步模式总是支持的
+      default:
+        return false;
+    }
+  }
+
+  /**
+   * 获取推荐的 Worker 类型
+   */
+  static getRecommendedWorkerType(): WorkerType {
+    return dataTransfer.getRecommendedWorkerType();
+  }
+}

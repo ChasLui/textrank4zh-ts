@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextRank4ZH-TS 通用客户端演示 - 三级降级策略</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 10px;
+        }
+        
+        .status-panel {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 4px;
+            border-left: 4px solid #007acc;
+        }
+        
+        .status-value {
+            font-weight: bold;
+            color: #007acc;
+        }
+        
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-top: 20px;
+        }
+        
+        .section {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        
+        .section h3 {
+            margin-top: 0;
+            color: #333;
+            border-bottom: 2px solid #007acc;
+            padding-bottom: 8px;
+        }
+        
+        textarea {
+            width: 100%;
+            min-height: 120px;
+            padding: 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: all 0.3s ease;
+        }
+        
+        button:hover {
+            background: #005a9e;
+            transform: translateY(-1px);
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .controls {
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        
+        .result-area {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 200px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 400px;
+        }
+        
+        .worker-type-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        
+        .worker-type-selector label {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        
+        .worker-type-option {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .performance-info {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 10px;
+            margin-top: 10px;
+            font-size: 12px;
+        }
+        
+        .error {
+            color: #dc3545;
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+        
+        .success {
+            color: #155724;
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🚀 TextRank4ZH-TS 通用客户端演示</h1>
+        <p>支持 SharedWorker → DedicatedWorker → 同步模式 三级降级策略</p>
+    </div>
+
+    <div class="status-panel">
+        <h3>📊 环境支持状态</h3>
+        <div class="status-item">
+            <span>SharedWorker 支持</span>
+            <span class="status-value" id="sharedWorkerSupport">检测中...</span>
+        </div>
+        <div class="status-item">
+            <span>DedicatedWorker 支持</span>
+            <span class="status-value" id="dedicatedWorkerSupport">检测中...</span>
+        </div>
+        <div class="status-item">
+            <span>Transferable 对象支持</span>
+            <span class="status-value" id="transferableSupport">检测中...</span>
+        </div>
+        <div class="status-item">
+            <span>TextEncoder 支持</span>
+            <span class="status-value" id="textEncoderSupport">检测中...</span>
+        </div>
+        <div class="status-item">
+            <span>推荐 Worker 类型</span>
+            <span class="status-value" id="recommendedType">检测中...</span>
+        </div>
+        <div class="status-item">
+            <span>当前使用类型</span>
+            <span class="status-value" id="currentType">未初始化</span>
+        </div>
+        <div class="status-item">
+            <span>连接状态</span>
+            <span class="status-value" id="connectionStatus">未连接</span>
+        </div>
+        <div class="status-item">
+            <span>主线程调度方式</span>
+            <span class="status-value" id="schedulingMethod">检测中...</span>
+        </div>
+        <div class="status-item">
+            <span>主线程繁忙程度</span>
+            <span class="status-value" id="mainThreadBusyness">未测量</span>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>🎛️ 客户端配置</h3>
+            
+            <div class="worker-type-selector">
+                <label>Worker 类型偏好:</label>
+                <div class="worker-type-option">
+                    <input type="radio" id="auto" name="workerType" value="auto" checked>
+                    <label for="auto">自动选择</label>
+                </div>
+                <div class="worker-type-option">
+                    <input type="radio" id="shared" name="workerType" value="shared">
+                    <label for="shared">SharedWorker</label>
+                </div>
+                <div class="worker-type-option">
+                    <input type="radio" id="dedicated" name="workerType" value="dedicated">
+                    <label for="dedicated">DedicatedWorker</label>
+                </div>
+            </div>
+            
+            <div style="margin-bottom: 15px;">
+                <label>
+                    <input type="checkbox" id="fallbackToSync" checked>
+                    允许降级到同步模式
+                </label>
+            </div>
+            
+            <div class="controls">
+                <button onclick="initializeClient()">🚀 初始化客户端</button>
+                <button onclick="checkStatus()">📊 检查状态</button>
+                <button onclick="measureMainThread()">📈 测量主线程</button>
+                <button onclick="optimizeScheduling()">⚡ 优化调度</button>
+                <button onclick="terminateClient()">🛑 终止客户端</button>
+            </div>
+            
+            <div id="initResult" class="result-area"></div>
+        </div>
+
+        <div class="section">
+            <h3>📝 文本分析测试</h3>
+            
+            <textarea id="inputText" placeholder="请输入要分析的中文文本...">
+中新网北京12月1日电(记者 张曦) 30日晚，高圆圆和赵又廷在京举行答谢宴，诸多明星现身捧场，其中包括张杰、谢娜夫妇、何炅、蔡康永、徐克、张凯丽、黄轩等。高圆圆身穿粉色外套，看到大批记者在场露出娇羞神色，赵又廷则戴着鸭舌帽，十分淡定，两人快步走进电梯，未接受媒体采访。
+
+人工智能技术在自然语言处理领域取得了重大突破。机器学习和深度学习推动了人工智能的快速发展。神经网络模型能够理解复杂的语言结构和语义信息。文本分析、语音识别、图像处理等应用场景不断涌现。未来人工智能将在更多领域发挥重要作用。
+            </textarea>
+            
+            <div class="controls">
+                <button onclick="analyzeKeywords()">🔑 提取关键词</button>
+                <button onclick="analyzeSentences()">📄 句子摘要</button>
+                <button onclick="parallelAnalysis()">⚡ 并行分析</button>
+                <button onclick="performanceTest()">🏃 性能测试</button>
+            </div>
+            
+            <div id="analysisResult" class="result-area"></div>
+        </div>
+    </div>
+
+    <script>
+        // === 通用 TextRank 客户端实现（内联版本）===
+        class TextRankUniversalClient {
+            constructor(workerUrl, options = {}) {
+                this.workerUrl = workerUrl;
+                this.options = {
+                    timeout: options.timeout || 30000,
+                    maxConcurrent: options.maxConcurrent || 10,
+                    preferredWorkerType: options.preferredWorkerType || 'auto',
+                    fallbackToSync: options.fallbackToSync !== false
+                };
+
+                this.currentWorkerType = null;
+                this.worker = null;
+                this.sharedWorkerPort = null;
+                this.pendingTasks = new Map();
+                this.connectionCount = 0;
+                this.isInitialized = false;
+                
+                // 数据传输工具
+                this.dataTransfer = new WorkerDataTransfer();
+            }
+
+            async initialize() {
+                this.currentWorkerType = this.selectWorkerType();
+                
+                try {
+                    if (this.currentWorkerType === 'sync') {
+                        console.log('使用同步模式处理');
+                        this.isInitialized = true;
+                        return;
+                    }
+
+                    if (this.currentWorkerType === 'shared') {
+                        await this.initSharedWorker();
+                    } else {
+                        await this.initDedicatedWorker();
+                    }
+
+                    this.isInitialized = true;
+                    console.log(`${this.currentWorkerType} Worker 初始化成功`);
+                } catch (error) {
+                    console.warn(`${this.currentWorkerType} Worker 初始化失败:`, error);
+                    await this.fallbackToNextWorkerType();
+                }
+            }
+
+            selectWorkerType() {
+                const supportStatus = this.dataTransfer.getSupportStatus();
+                
+                if (this.options.preferredWorkerType !== 'auto') {
+                    switch (this.options.preferredWorkerType) {
+                        case 'shared':
+                            return supportStatus.sharedWorker ? 'shared' : this.getRecommendedType();
+                        case 'dedicated':
+                            return supportStatus.worker ? 'dedicated' : this.getRecommendedType();
+                        default:
+                            return this.getRecommendedType();
+                    }
+                }
+
+                return this.getRecommendedType();
+            }
+
+            getRecommendedType() {
+                const status = this.dataTransfer.getSupportStatus();
+                if (status.sharedWorker) return 'shared';
+                if (status.worker) return 'dedicated';
+                return 'sync';
+            }
+
+            async initSharedWorker() {
+                this.worker = new SharedWorker('./textrank-sharedworker-standalone.js');
+                this.sharedWorkerPort = this.worker.port;
+                
+                this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
+                this.sharedWorkerPort.onerror = this.handleError.bind(this);
+                this.sharedWorkerPort.start();
+                this.connectionCount++;
+                
+                await this.waitForWorkerReady();
+            }
+
+            async initDedicatedWorker() {
+                this.worker = new Worker('./textrank-worker-standalone.js');
+                this.worker.onmessage = this.handleMessage.bind(this);
+                this.worker.onerror = this.handleError.bind(this);
+                
+                await this.waitForWorkerReady();
+            }
+
+            async waitForWorkerReady() {
+                return new Promise((resolve, reject) => {
+                    const timeout = setTimeout(() => reject(new Error('Worker 初始化超时')), 5000);
+                    
+                    const testMessage = {
+                        id: 'init-test',
+                        type: 'analyze_keywords',
+                        payload: { text: '', config: {}, options: {} }
+                    };
+
+                    const originalHandler = this.handleMessage.bind(this);
+                    const testHandler = (event) => {
+                        if (event.data.id === 'init-test') {
+                            clearTimeout(timeout);
+                            resolve();
+                        } else {
+                            originalHandler(event);
+                        }
+                    };
+
+                    if (this.sharedWorkerPort) {
+                        this.sharedWorkerPort.onmessage = testHandler;
+                        this.sharedWorkerPort.postMessage(testMessage);
+                    } else if (this.worker) {
+                        this.worker.onmessage = testHandler;
+                        this.worker.postMessage(testMessage);
+                    }
+                });
+            }
+
+            async fallbackToNextWorkerType() {
+                console.warn(`正在从 ${this.currentWorkerType} 降级...`);
+
+                if (this.currentWorkerType === 'shared') {
+                    this.currentWorkerType = 'dedicated';
+                } else if (this.currentWorkerType === 'dedicated') {
+                    if (this.options.fallbackToSync) {
+                        this.currentWorkerType = 'sync';
+                    } else {
+                        throw new Error('Worker 不可用且未启用同步模式降级');
+                    }
+                } else {
+                    throw new Error('所有 Worker 类型都不可用');
+                }
+
+                await this.initialize();
+            }
+
+            handleMessage(event) {
+                const message = event.data;
+                const task = this.pendingTasks.get(message.id);
+
+                if (!task) return;
+
+                if (message.type === 'error') {
+                    clearTimeout(task.timeout);
+                    this.pendingTasks.delete(message.id);
+                    task.reject(new Error(message.payload?.error || '未知错误'));
+                } else if (message.type === 'result') {
+                    clearTimeout(task.timeout);
+                    this.pendingTasks.delete(message.id);
+                    
+                    const processedData = this.dataTransfer.processReceivedData(message.payload);
+                    
+                    task.resolve({
+                        id: message.id,
+                        success: true,
+                        data: processedData,
+                        duration: message.payload?.duration
+                    });
+                }
+            }
+
+            handleError(error) {
+                console.error('Worker 错误:', error);
+                this.pendingTasks.forEach(task => {
+                    clearTimeout(task.timeout);
+                    task.reject(new Error(`Worker 错误: ${error.message}`));
+                });
+                this.pendingTasks.clear();
+            }
+
+            async analyzeKeywords(text, config = {}, options = {}) {
+                if (!this.isInitialized) {
+                    throw new Error('客户端未初始化');
+                }
+
+                if (this.currentWorkerType === 'sync') {
+                    return this.syncAnalyzeKeywords(text, config, options);
+                }
+
+                return this.executeWorkerTask('analyze_keywords', { text, config, options });
+            }
+
+            async analyzeSentences(text, config = {}, options = {}) {
+                if (!this.isInitialized) {
+                    throw new Error('客户端未初始化');
+                }
+
+                if (this.currentWorkerType === 'sync') {
+                    return this.syncAnalyzeSentences(text, config, options);
+                }
+
+                return this.executeWorkerTask('analyze_sentences', { text, config, options });
+            }
+
+            executeWorkerTask(type, payload) {
+                return new Promise((resolve, reject) => {
+                    if (this.pendingTasks.size >= this.options.maxConcurrent) {
+                        reject(new Error('任务队列已满'));
+                        return;
+                    }
+
+                    const id = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+                    
+                    const timeout = setTimeout(() => {
+                        this.pendingTasks.delete(id);
+                        reject(new Error('任务超时'));
+                    }, this.options.timeout);
+
+                    this.pendingTasks.set(id, { resolve, reject, timeout });
+
+                    const { transferData, transferables } = this.dataTransfer.prepareDataForTransfer(payload);
+                    
+                    const message = {
+                        id,
+                        type,
+                        payload: transferData
+                    };
+
+                    if (this.sharedWorkerPort) {
+                        if (transferables && transferables.length > 0) {
+                            this.sharedWorkerPort.postMessage(message, transferables);
+                        } else {
+                            this.sharedWorkerPort.postMessage(message);
+                        }
+                    } else if (this.worker) {
+                        if (transferables && transferables.length > 0) {
+                            this.worker.postMessage(message, transferables);
+                        } else {
+                            this.worker.postMessage(message);
+                        }
+                    }
+                });
+            }
+
+            // 同步模式实现（简化版）
+            async syncAnalyzeKeywords(text, config, options) {
+                const startTime = Date.now();
+                
+                // 模拟关键词提取
+                const words = text.match(/[\u4e00-\u9fa5]{2,}/g) || [];
+                const keywords = words.slice(0, options.keywords?.num || 10)
+                    .map((word, i) => ({
+                        word,
+                        weight: Math.random() * (1 - i * 0.1)
+                    }));
+
+                return {
+                    id: `sync-${Date.now()}`,
+                    success: true,
+                    data: { keywords },
+                    duration: Date.now() - startTime
+                };
+            }
+
+            async syncAnalyzeSentences(text, config, options) {
+                const startTime = Date.now();
+                
+                // 简单分句
+                const sentences = text.split(/[。！？；]/g)
+                    .filter(s => s.trim().length > 0)
+                    .slice(0, options.sentences?.num || 5)
+                    .map((sentence, i) => ({
+                        index: i,
+                        sentence: sentence.trim(),
+                        weight: Math.random()
+                    }));
+
+                return {
+                    id: `sync-${Date.now()}`,
+                    success: true,
+                    data: { sentences },
+                    duration: Date.now() - startTime
+                };
+            }
+
+            getStatus() {
+                return {
+                    type: this.currentWorkerType,
+                    available: this.isInitialized,
+                    connectionCount: this.currentWorkerType === 'shared' ? this.connectionCount : undefined,
+                    pendingTasks: this.pendingTasks.size
+                };
+            }
+
+            terminate() {
+                this.pendingTasks.forEach(task => {
+                    clearTimeout(task.timeout);
+                    task.reject(new Error('客户端已终止'));
+                });
+                this.pendingTasks.clear();
+
+                if (this.worker) {
+                    if (this.currentWorkerType === 'shared' && this.sharedWorkerPort) {
+                        this.sharedWorkerPort.close();
+                        this.connectionCount--;
+                    } else if (this.currentWorkerType === 'dedicated') {
+                        this.worker.terminate();
+                    }
+                    this.worker = null;
+                    this.sharedWorkerPort = null;
+                }
+
+                this.isInitialized = false;
+            }
+
+            static supportsWorkerType(type) {
+                const dataTransfer = new WorkerDataTransfer();
+                const status = dataTransfer.getSupportStatus();
+                
+                switch (type) {
+                    case 'shared': return status.sharedWorker;
+                    case 'dedicated': return status.worker;
+                    case 'sync': return true;
+                    default: return false;
+                }
+            }
+        }
+
+        // === 主线程调度器（内联版本）===
+        class MainThreadScheduler {
+            constructor() {
+                this.capabilities = this.detectCapabilities();
+                this.runningTasks = new Map();
+            }
+
+            detectCapabilities() {
+                const capabilities = {
+                    requestIdleCallback: false,
+                    scheduler: false,
+                    messageChannel: false,
+                    postTaskScheduler: false
+                };
+
+                try {
+                    capabilities.requestIdleCallback = typeof window !== 'undefined' && 
+                        typeof window.requestIdleCallback === 'function';
+                    capabilities.scheduler = typeof window !== 'undefined' && 
+                        'scheduler' in window && 
+                        typeof window.scheduler?.postTask === 'function';
+                    capabilities.messageChannel = typeof MessageChannel !== 'undefined';
+                    capabilities.postTaskScheduler = capabilities.scheduler;
+                } catch (error) {
+                    console.warn('调度能力检测失败', error);
+                }
+
+                return capabilities;
+            }
+
+            getRecommendedSchedulingMethod() {
+                if (this.capabilities.requestIdleCallback || this.capabilities.postTaskScheduler) {
+                    return 'background-task';
+                }
+                if (this.capabilities.messageChannel || typeof Promise !== 'undefined') {
+                    return 'promise';
+                }
+                return 'sync';
+            }
+
+            async scheduleTask(taskFn, options = {}) {
+                const schedulingMethod = this.getRecommendedSchedulingMethod();
+
+                try {
+                    switch (schedulingMethod) {
+                        case 'background-task':
+                            return await this.executeWithBackgroundTask(taskFn, options);
+                        case 'promise':
+                            return await this.executeWithPromise(taskFn, options);
+                        default:
+                            return await this.executeSync(taskFn);
+                    }
+                } catch (error) {
+                    console.warn(`${schedulingMethod} 调度失败，降级执行:`, error);
+                    if (schedulingMethod === 'background-task') {
+                        try {
+                            return await this.executeWithPromise(taskFn, options);
+                        } catch (promiseError) {
+                            return await this.executeSync(taskFn);
+                        }
+                    } else if (schedulingMethod === 'promise') {
+                        return await this.executeSync(taskFn);
+                    }
+                    throw error;
+                }
+            }
+
+            async executeWithBackgroundTask(taskFn, options) {
+                const { timeSlice = 5, maxContinuousTime = 16, idleTimeout = 50 } = options;
+
+                return new Promise((resolve, reject) => {
+                    if (this.capabilities.requestIdleCallback) {
+                        window.requestIdleCallback((deadline) => {
+                            try {
+                                const startTime = performance.now();
+                                
+                                const executeInIdleTime = () => {
+                                    const now = performance.now();
+                                    const elapsed = now - startTime;
+                                    
+                                    if (deadline.timeRemaining() > 0 && elapsed < maxContinuousTime) {
+                                        try {
+                                            const result = taskFn();
+                                            if (result instanceof Promise) {
+                                                result.then(resolve).catch(reject);
+                                            } else {
+                                                resolve(result);
+                                            }
+                                        } catch (error) {
+                                            reject(error);
+                                        }
+                                    } else {
+                                        window.requestIdleCallback((newDeadline) => {
+                                            executeInIdleTime();
+                                        }, { timeout: idleTimeout });
+                                    }
+                                };
+
+                                executeInIdleTime();
+                            } catch (error) {
+                                reject(error);
+                            }
+                        }, { timeout: idleTimeout });
+                    } else if (this.capabilities.postTaskScheduler) {
+                        const priority = options.priority === 'user-blocking' ? 'user-blocking' :
+                                        options.priority === 'normal' ? 'user-visible' : 'background';
+                        
+                        window.scheduler.postTask(() => {
+                            try {
+                                const result = taskFn();
+                                if (result instanceof Promise) {
+                                    result.then(resolve).catch(reject);
+                                } else {
+                                    resolve(result);
+                                }
+                            } catch (error) {
+                                reject(error);
+                            }
+                        }, { priority }).catch(reject);
+                    }
+                });
+            }
+
+            async executeWithPromise(taskFn, options) {
+                const { timeSlice = 5 } = options;
+
+                return new Promise(async (resolve, reject) => {
+                    const yieldControl = () => {
+                        return new Promise((yieldResolve) => {
+                            if (this.capabilities.messageChannel) {
+                                const channel = new MessageChannel();
+                                channel.port1.onmessage = () => yieldResolve();
+                                channel.port2.postMessage(null);
+                            } else {
+                                setTimeout(yieldResolve, 0);
+                            }
+                        });
+                    };
+
+                    try {
+                        const startTime = performance.now();
+                        const result = taskFn();
+                        const elapsed = performance.now() - startTime;
+
+                        if (elapsed > timeSlice) {
+                            await yieldControl();
+                        }
+
+                        if (result instanceof Promise) {
+                            result.then(resolve).catch(reject);
+                        } else {
+                            resolve(result);
+                        }
+                    } catch (error) {
+                        reject(error);
+                    }
+                });
+            }
+
+            async executeSync(taskFn) {
+                try {
+                    const result = taskFn();
+                    if (result instanceof Promise) {
+                        return await result;
+                    }
+                    return result;
+                } catch (error) {
+                    throw error;
+                }
+            }
+
+            async measureMainThreadBusyness() {
+                return new Promise((resolve) => {
+                    const measurements = [];
+                    let measurementCount = 0;
+                    const maxMeasurements = 10;
+
+                    const measure = () => {
+                        const start = performance.now();
+                        
+                        if (this.capabilities.requestIdleCallback) {
+                            window.requestIdleCallback(() => {
+                                const frameTime = performance.now() - start;
+                                measurements.push(frameTime);
+                                measurementCount++;
+
+                                if (measurementCount < maxMeasurements) {
+                                    measure();
+                                } else {
+                                    const averageFrameTime = measurements.reduce((sum, time) => sum + time, 0) / measurements.length;
+                                    const isBlocked = averageFrameTime > 16.67;
+                                    
+                                    let recommendation;
+                                    if (averageFrameTime < 8) {
+                                        recommendation = 'aggressive';
+                                    } else if (averageFrameTime < 16.67) {
+                                        recommendation = 'moderate';
+                                    } else {
+                                        recommendation = 'conservative';
+                                    }
+
+                                    resolve({
+                                        averageFrameTime,
+                                        isBlocked,
+                                        recommendation
+                                    });
+                                }
+                            });
+                        } else {
+                            setTimeout(() => {
+                                const frameTime = performance.now() - start;
+                                measurements.push(frameTime);
+                                measurementCount++;
+
+                                if (measurementCount < maxMeasurements) {
+                                    measure();
+                                } else {
+                                    const averageFrameTime = measurements.reduce((sum, time) => sum + time, 0) / measurements.length;
+                                    resolve({
+                                        averageFrameTime,
+                                        isBlocked: averageFrameTime > 20,
+                                        recommendation: averageFrameTime < 10 ? 'aggressive' : 
+                                                       averageFrameTime < 20 ? 'moderate' : 'conservative'
+                                    });
+                                }
+                            }, 0);
+                        }
+                    };
+
+                    measure();
+                });
+            }
+
+            getStatus() {
+                return {
+                    runningTasks: this.runningTasks.size,
+                    capabilities: this.capabilities,
+                    recommendedMethod: this.getRecommendedSchedulingMethod()
+                };
+            }
+        }
+
+        // === 数据传输工具（内联版本）===
+        class WorkerDataTransfer {
+            constructor() {
+                this.isTransferableSupported = this.detectTransferableSupport();
+                this.isWorkerSupported = this.detectWorkerSupport();
+                this.isSharedWorkerSupported = this.detectSharedWorkerSupport();
+                this.isTextEncoderSupported = this.detectTextEncoderSupport();
+            }
+
+            detectTransferableSupport() {
+                try {
+                    return typeof ArrayBuffer !== 'undefined';
+                } catch {
+                    return false;
+                }
+            }
+
+            detectWorkerSupport() {
+                try {
+                    return typeof Worker !== 'undefined';
+                } catch {
+                    return false;
+                }
+            }
+
+            detectSharedWorkerSupport() {
+                try {
+                    return typeof SharedWorker !== 'undefined';
+                } catch {
+                    return false;
+                }
+            }
+
+            detectTextEncoderSupport() {
+                try {
+                    return typeof TextEncoder !== 'undefined' && typeof TextDecoder !== 'undefined';
+                } catch {
+                    return false;
+                }
+            }
+
+            getSupportStatus() {
+                return {
+                    sharedWorker: this.isSharedWorkerSupported,
+                    worker: this.isWorkerSupported,
+                    transferable: this.isTransferableSupported,
+                    textEncoder: this.isTextEncoderSupported
+                };
+            }
+
+            shouldUseTransferable(data, threshold = 1024) {
+                if (!this.isTransferableSupported) return false;
+                try {
+                    const serialized = JSON.stringify(data);
+                    return serialized.length > threshold;
+                } catch {
+                    return false;
+                }
+            }
+
+            prepareDataForTransfer(data) {
+                try {
+                    const useTransferable = this.shouldUseTransferable(data);
+                    if (useTransferable && this.isTextEncoderSupported) {
+                        const jsonString = JSON.stringify(data);
+                        const buffer = new TextEncoder().encode(jsonString).buffer;
+                        return {
+                            transferData: { __transferable: true, data: buffer },
+                            transferables: [buffer],
+                            useTransferable: true
+                        };
+                    }
+                    return { transferData: data, useTransferable: false };
+                } catch (error) {
+                    console.warn('Transferable 准备失败:', error);
+                    return { transferData: data, useTransferable: false };
+                }
+            }
+
+            processReceivedData(data) {
+                try {
+                    if (data && data.__transferable === true && this.isTextEncoderSupported) {
+                        const jsonString = new TextDecoder().decode(data.data);
+                        return JSON.parse(jsonString);
+                    }
+                    return data;
+                } catch (error) {
+                    console.warn('数据处理失败:', error);
+                    return data;
+                }
+            }
+        }
+
+        // === 应用逻辑 ===
+        let client = null;
+        const dataTransfer = new WorkerDataTransfer();
+        const mainThreadScheduler = new MainThreadScheduler();
+
+        // 初始化页面
+        window.addEventListener('load', () => {
+            updateSupportStatus();
+            updateSchedulingStatus();
+        });
+
+        function updateSupportStatus() {
+            const status = dataTransfer.getSupportStatus();
+            
+            document.getElementById('sharedWorkerSupport').textContent = status.sharedWorker ? '✅ 支持' : '❌ 不支持';
+            document.getElementById('dedicatedWorkerSupport').textContent = status.worker ? '✅ 支持' : '❌ 不支持';
+            document.getElementById('transferableSupport').textContent = status.transferable ? '✅ 支持' : '❌ 不支持';
+            document.getElementById('textEncoderSupport').textContent = status.textEncoder ? '✅ 支持' : '❌ 不支持';
+            
+            const recommendedType = status.sharedWorker ? 'SharedWorker' : 
+                                  status.worker ? 'DedicatedWorker' : '同步模式';
+            document.getElementById('recommendedType').textContent = recommendedType;
+        }
+
+        function updateSchedulingStatus() {
+            const schedulerStatus = mainThreadScheduler.getStatus();
+            const method = schedulerStatus.recommendedMethod;
+            
+            const methodText = {
+                'background-task': '后台任务 API',
+                'promise': 'Promise 微任务',
+                'sync': '同步执行'
+            };
+            
+            document.getElementById('schedulingMethod').textContent = methodText[method] || method;
+        }
+
+        async function initializeClient() {
+            const resultDiv = document.getElementById('initResult');
+            const workerType = document.querySelector('input[name="workerType"]:checked').value;
+            const fallbackToSync = document.getElementById('fallbackToSync').checked;
+
+            try {
+                resultDiv.textContent = '正在初始化客户端...';
+                
+                if (client) {
+                    client.terminate();
+                }
+
+                client = new TextRankUniversalClient('./textrank-worker-standalone.js', {
+                    timeout: 30000,
+                    maxConcurrent: 10,
+                    preferredWorkerType: workerType,
+                    fallbackToSync: fallbackToSync
+                });
+
+                await client.initialize();
+                
+                const status = client.getStatus();
+                
+                resultDiv.innerHTML = `
+✅ 客户端初始化成功！
+
+配置信息:
+- 首选类型: ${workerType}
+- 实际使用: ${status.type}
+- 连接状态: ${status.available ? '已连接' : '未连接'}
+${status.connectionCount !== undefined ? `- 连接数: ${status.connectionCount}` : ''}
+- 待处理任务: ${status.pendingTasks}
+
+初始化时间: ${new Date().toLocaleTimeString()}
+                `;
+
+                // 更新状态显示
+                document.getElementById('currentType').textContent = status.type;
+                document.getElementById('connectionStatus').textContent = status.available ? '已连接' : '未连接';
+
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 初始化失败: ${error.message}`;
+                console.error('初始化失败:', error);
+            }
+        }
+
+        function checkStatus() {
+            if (!client) {
+                document.getElementById('initResult').textContent = '❌ 客户端未初始化';
+                return;
+            }
+
+            const status = client.getStatus();
+            const supportStatus = dataTransfer.getSupportStatus();
+            
+            document.getElementById('initResult').innerHTML = `
+📊 当前状态:
+
+客户端信息:
+- Worker 类型: ${status.type}
+- 连接状态: ${status.available ? '已连接' : '未连接'}
+${status.connectionCount !== undefined ? `- 连接数: ${status.connectionCount}` : ''}
+- 待处理任务: ${status.pendingTasks}
+
+环境支持:
+- SharedWorker: ${supportStatus.sharedWorker ? '✅' : '❌'}
+- DedicatedWorker: ${supportStatus.worker ? '✅' : '❌'}
+- Transferable: ${supportStatus.transferable ? '✅' : '❌'}
+- TextEncoder: ${supportStatus.textEncoder ? '✅' : '❌'}
+
+检查时间: ${new Date().toLocaleTimeString()}
+            `;
+
+            // 更新状态显示
+            document.getElementById('currentType').textContent = status.type;
+            document.getElementById('connectionStatus').textContent = status.available ? '已连接' : '未连接';
+        }
+
+        function terminateClient() {
+            if (client) {
+                client.terminate();
+                client = null;
+                
+                document.getElementById('initResult').textContent = '✅ 客户端已终止';
+                document.getElementById('currentType').textContent = '未初始化';
+                document.getElementById('connectionStatus').textContent = '未连接';
+            } else {
+                document.getElementById('initResult').textContent = '❌ 没有活动的客户端';
+            }
+        }
+
+        async function measureMainThread() {
+            const resultDiv = document.getElementById('initResult');
+            resultDiv.textContent = '🔄 正在测量主线程繁忙程度...';
+
+            try {
+                const busyness = await mainThreadScheduler.measureMainThreadBusyness();
+                
+                resultDiv.innerHTML = `
+📈 主线程繁忙程度测量结果:
+
+测量结果:
+- 平均帧时间: ${busyness.averageFrameTime.toFixed(2)}ms
+- 是否阻塞: ${busyness.isBlocked ? '❌ 是' : '✅ 否'}
+- 推荐策略: ${busyness.recommendation}
+
+性能评估:
+${busyness.averageFrameTime < 8 ? '🚀 主线程空闲，可以使用积极调度' : 
+  busyness.averageFrameTime < 16.67 ? '✅ 主线程适中，使用适度调度' : 
+  '⚠️ 主线程繁忙，应使用保守调度'}
+
+调度器状态:
+- 推荐调度方式: ${mainThreadScheduler.getRecommendedSchedulingMethod()}
+- 运行任务数: ${mainThreadScheduler.getStatus().runningTasks}
+
+测量时间: ${new Date().toLocaleTimeString()}
+                `;
+
+                // 更新状态显示
+                const busynessText = `${busyness.averageFrameTime.toFixed(2)}ms (${busyness.recommendation})`;
+                document.getElementById('mainThreadBusyness').textContent = busynessText;
+
+            } catch (error) {
+                resultDiv.textContent = `❌ 测量失败: ${error.message}`;
+                console.error('主线程繁忙程度测量失败:', error);
+            }
+        }
+
+        async function optimizeScheduling() {
+            if (!client) {
+                document.getElementById('initResult').textContent = '❌ 请先初始化客户端';
+                return;
+            }
+
+            const resultDiv = document.getElementById('initResult');
+            resultDiv.textContent = '🔄 正在优化调度配置...';
+
+            try {
+                if (client.optimizeSyncScheduling && typeof client.optimizeSyncScheduling === 'function') {
+                    await client.optimizeSyncScheduling();
+                    
+                    const status = await client.getDetailedStatus();
+                    
+                    resultDiv.innerHTML = `
+⚡ 调度优化完成:
+
+优化结果:
+- Worker 类型: ${status.type}
+${status.mainThreadBusyness ? 
+    `- 主线程帧时间: ${status.mainThreadBusyness.averageFrameTime.toFixed(2)}ms
+- 调度策略: ${status.mainThreadBusyness.recommendation}` : 
+    '- 无需调度优化 (非同步模式)'
+}
+
+${status.schedulerStatus ? 
+    `调度器信息:
+- 推荐方式: ${status.schedulerStatus.recommendedMethod}
+- 运行任务: ${status.schedulerStatus.runningTasks}
+- 能力支持: ${Object.entries(status.schedulerStatus.capabilities)
+    .map(([key, supported]) => `${key}: ${supported ? '✅' : '❌'}`)
+    .join('\n  ')}` : 
+    ''
+}
+
+优化时间: ${new Date().toLocaleTimeString()}
+                    `;
+                } else {
+                    resultDiv.textContent = '⚠️ 当前客户端不支持调度优化（可能不是同步模式）';
+                }
+
+            } catch (error) {
+                resultDiv.textContent = `❌ 优化失败: ${error.message}`;
+                console.error('调度优化失败:', error);
+            }
+        }
+
+        async function analyzeKeywords() {
+            if (!client) {
+                document.getElementById('analysisResult').textContent = '❌ 请先初始化客户端';
+                return;
+            }
+
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                document.getElementById('analysisResult').textContent = '❌ 请输入文本内容';
+                return;
+            }
+
+            const resultDiv = document.getElementById('analysisResult');
+            resultDiv.textContent = '🔄 正在分析关键词...';
+
+            try {
+                const startTime = Date.now();
+                const result = await client.analyzeKeywords(text, 
+                    { window: 2, lower: true, vertexSource: 'all_filters' },
+                    { keywords: { num: 10, wordMinLen: 1 }, keyphrases: { keywordsNum: 12 } }
+                );
+                const totalTime = Date.now() - startTime;
+
+                resultDiv.innerHTML = `
+🔑 关键词分析结果:
+
+${result.data.keywords ? 
+    `关键词 (${result.data.keywords.length}):
+${result.data.keywords.map((k, i) => `${i+1}. ${k.word} (权重: ${k.weight.toFixed(4)})`).join('\n')}` : 
+    '未提取到关键词'
+}
+
+${result.data.keyphrases ? 
+    `关键短语 (${result.data.keyphrases.length}):
+${result.data.keyphrases.map((p, i) => `${i+1}. ${p}`).join('\n')}` : 
+    '未提取到关键短语'
+}
+
+性能信息:
+- Worker 处理时间: ${result.duration || 0}ms
+- 总时间 (含传输): ${totalTime}ms
+- Worker 类型: ${client.getStatus().type}
+- 任务 ID: ${result.id}
+                `;
+
+            } catch (error) {
+                resultDiv.textContent = `❌ 分析失败: ${error.message}`;
+                console.error('关键词分析失败:', error);
+            }
+        }
+
+        async function analyzeSentences() {
+            if (!client) {
+                document.getElementById('analysisResult').textContent = '❌ 请先初始化客户端';
+                return;
+            }
+
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                document.getElementById('analysisResult').textContent = '❌ 请输入文本内容';
+                return;
+            }
+
+            const resultDiv = document.getElementById('analysisResult');
+            resultDiv.textContent = '🔄 正在分析句子...';
+
+            try {
+                const startTime = Date.now();
+                const result = await client.analyzeSentences(text,
+                    { lower: true, source: 'all_filters' },
+                    { sentences: { num: 5, sentenceMinLen: 6 }, summary: { num: 3 } }
+                );
+                const totalTime = Date.now() - startTime;
+
+                resultDiv.innerHTML = `
+📄 句子分析结果:
+
+${result.data.sentences ? 
+    `关键句子 (${result.data.sentences.length}):
+${result.data.sentences.map((s, i) => `${i+1}. [${s.index}] ${s.sentence} (权重: ${s.weight.toFixed(4)})`).join('\n\n')}` : 
+    '未提取到关键句子'
+}
+
+${result.data.summary ? 
+    `文本摘要:
+${result.data.summary}` : 
+    '未生成摘要'
+}
+
+性能信息:
+- Worker 处理时间: ${result.duration || 0}ms
+- 总时间 (含传输): ${totalTime}ms
+- Worker 类型: ${client.getStatus().type}
+- 任务 ID: ${result.id}
+                `;
+
+            } catch (error) {
+                resultDiv.textContent = `❌ 分析失败: ${error.message}`;
+                console.error('句子分析失败:', error);
+            }
+        }
+
+        async function parallelAnalysis() {
+            if (!client) {
+                document.getElementById('analysisResult').textContent = '❌ 请先初始化客户端';
+                return;
+            }
+
+            const text = document.getElementById('inputText').value.trim();
+            if (!text) {
+                document.getElementById('analysisResult').textContent = '❌ 请输入文本内容';
+                return;
+            }
+
+            const resultDiv = document.getElementById('analysisResult');
+            resultDiv.textContent = '🔄 正在并行分析...';
+
+            try {
+                const startTime = Date.now();
+                
+                const [keywordResult, sentenceResult] = await Promise.all([
+                    client.analyzeKeywords(text, 
+                        { window: 2, lower: true },
+                        { keywords: { num: 8 }, keyphrases: { keywordsNum: 10 } }
+                    ),
+                    client.analyzeSentences(text,
+                        { lower: true, source: 'all_filters' },
+                        { sentences: { num: 3 }, summary: { num: 2 } }
+                    )
+                ]);
+                
+                const totalTime = Date.now() - startTime;
+
+                resultDiv.innerHTML = `
+⚡ 并行分析结果:
+
+🔑 关键词 (${keywordResult.data.keywords?.length || 0}):
+${keywordResult.data.keywords?.slice(0, 5).map((k, i) => `${i+1}. ${k.word} (${k.weight.toFixed(4)})`).join('\n') || '无'}
+
+📄 关键句子 (${sentenceResult.data.sentences?.length || 0}):
+${sentenceResult.data.sentences?.map((s, i) => `${i+1}. ${s.sentence.substring(0, 50)}...`).join('\n') || '无'}
+
+📝 摘要:
+${sentenceResult.data.summary || '无'}
+
+⚡ 性能对比:
+- 关键词分析: ${keywordResult.duration || 0}ms
+- 句子分析: ${sentenceResult.duration || 0}ms
+- 并行总时间: ${totalTime}ms
+- 顺序执行预计: ${(keywordResult.duration || 0) + (sentenceResult.duration || 0)}ms
+- 性能提升: ${Math.round((1 - totalTime / ((keywordResult.duration || 0) + (sentenceResult.duration || 0))) * 100)}%
+- Worker 类型: ${client.getStatus().type}
+                `;
+
+            } catch (error) {
+                resultDiv.textContent = `❌ 并行分析失败: ${error.message}`;
+                console.error('并行分析失败:', error);
+            }
+        }
+
+        async function performanceTest() {
+            if (!client) {
+                document.getElementById('analysisResult').textContent = '❌ 请先初始化客户端';
+                return;
+            }
+
+            const resultDiv = document.getElementById('analysisResult');
+            resultDiv.textContent = '🔄 正在进行性能测试...';
+
+            const testTexts = [
+                '这是第一个测试文本。人工智能技术正在快速发展。',
+                '第二个测试样本。机器学习和深度学习推动着技术进步。',
+                '性能测试第三段。自然语言处理取得了重大突破。',
+                '最后一个测试文档。未来科技将改变我们的生活方式。'
+            ];
+
+            try {
+                const results = [];
+                const overallStart = Date.now();
+
+                for (let i = 0; i < testTexts.length; i++) {
+                    const testStart = Date.now();
+                    const result = await client.analyzeKeywords(testTexts[i], 
+                        { window: 2, lower: true },
+                        { keywords: { num: 5 } }
+                    );
+                    const testTime = Date.now() - testStart;
+                    
+                    results.push({
+                        index: i + 1,
+                        workerTime: result.duration || 0,
+                        totalTime: testTime,
+                        keywordCount: result.data.keywords?.length || 0
+                    });
+                }
+
+                const overallTime = Date.now() - overallStart;
+                const avgWorkerTime = results.reduce((sum, r) => sum + r.workerTime, 0) / results.length;
+                const avgTotalTime = results.reduce((sum, r) => sum + r.totalTime, 0) / results.length;
+
+                resultDiv.innerHTML = `
+🏃 性能测试结果:
+
+测试详情:
+${results.map(r => `测试 ${r.index}: Worker ${r.workerTime}ms | 总计 ${r.totalTime}ms | 关键词 ${r.keywordCount}个`).join('\n')}
+
+统计信息:
+- 测试文档数: ${results.length}
+- 总耗时: ${overallTime}ms
+- 平均 Worker 时间: ${avgWorkerTime.toFixed(2)}ms
+- 平均总时间: ${avgTotalTime.toFixed(2)}ms
+- 传输开销: ${(avgTotalTime - avgWorkerTime).toFixed(2)}ms
+- Worker 类型: ${client.getStatus().type}
+- 支持 Transferable: ${dataTransfer.getSupportStatus().transferable ? '✅' : '❌'}
+
+性能评估:
+${avgTotalTime < 100 ? '🚀 性能优秀' : 
+  avgTotalTime < 500 ? '✅ 性能良好' : 
+  avgTotalTime < 1000 ? '⚠️ 性能一般' : '❌ 性能较差'}
+                `;
+
+            } catch (error) {
+                resultDiv.textContent = `❌ 性能测试失败: ${error.message}`;
+                console.error('性能测试失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>

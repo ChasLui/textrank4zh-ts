@@ -1,0 +1,43 @@
+{
+  "git": {
+    "commitMessage": "chore: release v${version}",
+    "tagName": "v${version}",
+    "pushArgs": ["--follow-tags"]
+  },
+  "github": {
+    "release": true,
+    "releaseName": "Release v${version}",
+    "assets": ["dist/**"]
+  },
+  "npm": {
+    "publish": true,
+    "publishArgs": ["--access", "public"]
+  },
+  "hooks": {
+    "before:init": [
+      "pnpm run lint",
+      "pnpm run test"
+    ],
+    "before:release": [
+      "pnpm run clean",
+      "pnpm run build"
+    ]
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": "conventionalcommits",
+      "infile": "CHANGELOG.md"
+    }
+  },
+  "prompt": {
+    "globs": "./dist/**",
+    "src": {
+      "status": false,
+      "commit": true,
+      "tag": true,
+      "push": true,
+      "release": true
+    },
+    "publish": true
+  }
+}

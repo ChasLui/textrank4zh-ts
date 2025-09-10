@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextRank4ZH-TS IIFE 使用示例</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .section {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 20px;
+            background: #f9f9f9;
+        }
+        textarea {
+            width: 100%;
+            min-height: 100px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 14px;
+            font-family: inherit;
+            resize: vertical;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            min-height: 150px;
+            font-family: monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .status {
+            background: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 20px;
+            font-size: 14px;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        h3 {
+            margin-top: 0;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+    <h1>🚀 TextRank4ZH-TS IIFE 使用演示</h1>
+    <p>这个示例展示如何在浏览器中直接使用 TextRank4ZH-TS，无需构建工具！</p>
+
+    <div class="status" id="status">
+        <strong>初始化状态:</strong> <span id="statusText">正在加载库...</span>
+    </div>
+
+    <div class="container">
+        <div class="section">
+            <h3>📝 文本输入</h3>
+            <textarea id="textInput" placeholder="请输入要分析的中文文本...">
+中新网北京12月1日电(记者 张曦) 30日晚，高圆圆和赵又廷在京举行答谢宴，诸多明星现身捧场，其中包括张杰、谢娜夫妇、何炅、蔡康永、徐克、张凯丽、黄轩等。高圆圆身穿粉色外套，看到大批记者在场露出娇羞神色，赵又廷则戴着鸭舌帽，十分淡定，两人快步走进电梯，未接受媒体采访。
+
+人工智能技术在自然语言处理领域取得了重大突破。机器学习和深度学习推动了人工智能的快速发展。神经网络模型能够理解复杂的语言结构和语义信息。文本分析、语音识别、图像处理等应用场景不断涌现。未来人工智能将在更多领域发挥重要作用。
+            </textarea>
+            
+            <div>
+                <button onclick="analyzeKeywords()">🔑 提取关键词</button>
+                <button onclick="analyzeSentences()">📄 句子摘要</button>
+                <button onclick="testMainThreadScheduler()">⚡ 测试调度器</button>
+                <button onclick="clearResults()">🗑️ 清空结果</button>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>📊 分析结果</h3>
+            <div id="results" class="result">点击左侧按钮开始分析...</div>
+        </div>
+    </div>
+
+    <!-- 引入 IIFE 构建版本 -->
+    <script src="../../dist/index.iife.js"></script>
+    <script>
+        // 检查全局变量是否加载成功
+        if (typeof TextRank4ZH === 'undefined') {
+            document.getElementById('statusText').innerHTML = 
+                '❌ <strong>加载失败</strong> - 请确保先运行 <code>npm run build</code>';
+        } else {
+            document.getElementById('statusText').innerHTML = 
+                '✅ <strong>库已加载</strong> - 全局变量 TextRank4ZH 可用';
+        }
+
+        // 解构需要的类和实例
+        const {
+            TextRankKeyword,
+            TextRankSentence,
+            TextRankUniversalClient,
+            mainThreadScheduler,
+            dataTransfer
+        } = TextRank4ZH;
+
+        // 显示环境支持状态
+        window.addEventListener('load', () => {
+            const status = dataTransfer.getSupportStatus();
+            const schedulerStatus = mainThreadScheduler.getStatus();
+            
+            const statusHtml = `
+✅ <strong>库已加载</strong> - 全局变量 TextRank4ZH 可用
+
+<strong>环境支持状态:</strong>
+• SharedWorker: ${status.sharedWorker ? '✅ 支持' : '❌ 不支持'}
+• DedicatedWorker: ${status.worker ? '✅ 支持' : '❌ 不支持'}
+• Transferable 对象: ${status.transferable ? '✅ 支持' : '❌ 不支持'}
+• TextEncoder: ${status.textEncoder ? '✅ 支持' : '❌ 不支持'}
+
+<strong>主线程调度:</strong>
+• 推荐调度方式: ${schedulerStatus.recommendedMethod}
+• 运行任务数: ${schedulerStatus.runningTasks}
+            `;
+            
+            document.getElementById('statusText').innerHTML = statusHtml;
+        });
+
+        // 分析关键词
+        async function analyzeKeywords() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                updateResults('❌ 请输入文本内容');
+                return;
+            }
+
+            updateResults('🔄 正在分析关键词...');
+
+            try {
+                const startTime = Date.now();
+                
+                // 使用主线程同步模式（直接使用算法类）
+                const tr4w = new TextRankKeyword();
+                tr4w.analyze(text, {
+                    window: 2,
+                    lower: true,
+                    vertexSource: 'all_filters'
+                });
+
+                const keywords = tr4w.getKeywords(10, 1);
+                const keyphrases = tr4w.getKeyphrases(12, 2);
+                const duration = Date.now() - startTime;
+
+                const result = `
+🔑 关键词分析结果:
+
+关键词 (${keywords.length}):
+${keywords.map((k, i) => `${i+1}. ${k.word} (权重: ${k.weight.toFixed(4)})`).join('\n')}
+
+关键短语 (${keyphrases.length}):
+${keyphrases.map((p, i) => `${i+1}. ${p}`).join('\n')}
+
+性能信息:
+• 处理时间: ${duration}ms
+• 处理模式: 主线程直接执行
+• 文本长度: ${text.length} 字符
+                `;
+
+                updateResults(result);
+
+            } catch (error) {
+                updateResults(`❌ 分析失败: ${error.message}`);
+                console.error('关键词分析失败:', error);
+            }
+        }
+
+        // 分析句子
+        async function analyzeSentences() {
+            const text = document.getElementById('textInput').value.trim();
+            if (!text) {
+                updateResults('❌ 请输入文本内容');
+                return;
+            }
+
+            updateResults('🔄 正在分析句子...');
+
+            try {
+                const startTime = Date.now();
+                
+                // 使用主线程同步模式（直接使用算法类）
+                const tr4s = new TextRankSentence();
+                tr4s.analyze(text, {
+                    lower: true,
+                    source: 'all_filters'
+                });
+
+                const sentences = tr4s.getKeySentences(5, 6);
+                const summary = tr4s.getSummary(3, 6, true);
+                const duration = Date.now() - startTime;
+
+                const result = `
+📄 句子分析结果:
+
+关键句子 (${sentences.length}):
+${sentences.map((s, i) => `${i+1}. [${s.index}] ${s.sentence} (权重: ${s.weight.toFixed(4)})`).join('\n\n')}
+
+文本摘要:
+${summary}
+
+性能信息:
+• 处理时间: ${duration}ms
+• 处理模式: 主线程直接执行
+• 文本长度: ${text.length} 字符
+                `;
+
+                updateResults(result);
+
+            } catch (error) {
+                updateResults(`❌ 分析失败: ${error.message}`);
+                console.error('句子分析失败:', error);
+            }
+        }
+
+        // 测试主线程调度器
+        async function testMainThreadScheduler() {
+            updateResults('🔄 正在测试主线程调度器...');
+
+            try {
+                const startTime = Date.now();
+                
+                // 测量主线程繁忙程度
+                const busyness = await mainThreadScheduler.measureMainThreadBusyness();
+                const measureTime = Date.now() - startTime;
+
+                // 测试调度任务执行
+                const taskStartTime = Date.now();
+                const taskResult = await mainThreadScheduler.scheduleTask(() => {
+                    // 模拟一些计算工作
+                    let sum = 0;
+                    for (let i = 0; i < 100000; i++) {
+                        sum += Math.sqrt(i);
+                    }
+                    return sum;
+                }, {
+                    priority: 'background',
+                    timeSlice: 5
+                });
+                const taskTime = Date.now() - taskStartTime;
+
+                const result = `
+⚡ 主线程调度器测试结果:
+
+主线程繁忙程度检测:
+• 平均帧时间: ${busyness.averageFrameTime.toFixed(2)}ms
+• 是否阻塞: ${busyness.isBlocked ? '❌ 是' : '✅ 否'}
+• 推荐策略: ${busyness.recommendation}
+• 检测耗时: ${measureTime}ms
+
+调度任务测试:
+• 任务结果: ${taskResult.toFixed(0)}
+• 执行时间: ${taskTime}ms
+• 调度方式: ${mainThreadScheduler.getRecommendedSchedulingMethod()}
+
+环境能力:
+• requestIdleCallback: ${mainThreadScheduler.capabilities.requestIdleCallback ? '✅' : '❌'}
+• Scheduler API: ${mainThreadScheduler.capabilities.scheduler ? '✅' : '❌'}
+• MessageChannel: ${mainThreadScheduler.capabilities.messageChannel ? '✅' : '❌'}
+
+性能评估:
+${busyness.averageFrameTime < 8 ? '🚀 主线程空闲，可以使用积极调度' : 
+  busyness.averageFrameTime < 16.67 ? '✅ 主线程适中，使用适度调度' : 
+  '⚠️ 主线程繁忙，应使用保守调度'}
+                `;
+
+                updateResults(result);
+
+            } catch (error) {
+                updateResults(`❌ 调度器测试失败: ${error.message}`);
+                console.error('调度器测试失败:', error);
+            }
+        }
+
+        // 清空结果
+        function clearResults() {
+            updateResults('点击左侧按钮开始分析...');
+        }
+
+        // 更新结果显示
+        function updateResults(text) {
+            document.getElementById('results').textContent = text;
+        }
+
+        // 页面加载完成提示
+        console.log('🚀 TextRank4ZH-TS IIFE 版本已加载!');
+        console.log('全局变量 TextRank4ZH 包含以下内容:', Object.keys(TextRank4ZH));
+        console.log('可以在控制台直接使用，例如：');
+        console.log('const tr4w = new TextRank4ZH.TextRankKeyword();');
+    </script>
+</body>
+</html>
