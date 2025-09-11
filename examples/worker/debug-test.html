@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker 调试测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-section {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007acc;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005a9e; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        .log {
+            background: #2d2d2d;
+            color: #f8f8f2;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .success { border-left-color: #28a745; }
+        .error { border-left-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>🔧 TextRank4ZH-TS Worker 调试测试</h1>
+    
+    <div class="test-section">
+        <h3>环境信息</h3>
+        <button onclick="checkEnvironment()">检查环境</button>
+        <div id="env-log" class="log">点击"检查环境"按钮...</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>CDN 连接测试</h3>
+        <button onclick="testCDNConnection()">测试CDN连接</button>
+        <div id="cdn-log" class="log">点击"测试CDN连接"按钮...</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>Worker 基础测试</h3>
+        <button onclick="testBasicWorker()">测试基础Worker</button>
+        <button onclick="testWorkerMessage()">测试Worker消息</button>
+        <div id="worker-log" class="log">点击测试按钮...</div>
+    </div>
+    
+    <div class="test-section">
+        <h3>完整功能测试</h3>
+        <button onclick="testFullFunction()">测试完整功能</button>
+        <div id="full-log" class="log">点击"测试完整功能"按钮...</div>
+    </div>
+
+    <script>
+        function log(elementId, message, isError = false) {
+            const element = document.getElementById(elementId);
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = isError ? '❌' : '✅';
+            element.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            element.scrollTop = element.scrollHeight;
+            
+            // 同时输出到控制台
+            console.log(`[${elementId}] ${message}`);
+            if (isError) console.error(message);
+        }
+
+        function clearLog(elementId) {
+            document.getElementById(elementId).textContent = '';
+        }
+
+        function checkEnvironment() {
+            clearLog('env-log');
+            
+            const tests = {
+                'Worker支持': typeof Worker !== 'undefined',
+                'SharedWorker支持': typeof SharedWorker !== 'undefined',
+                'Promise支持': typeof Promise !== 'undefined',
+                'ArrayBuffer支持': typeof ArrayBuffer !== 'undefined',
+                'TextEncoder支持': typeof TextEncoder !== 'undefined',
+                'TextDecoder支持': typeof TextDecoder !== 'undefined',
+                'URL支持': typeof URL !== 'undefined',
+                'Fetch支持': typeof fetch !== 'undefined'
+            };
+
+            for (const [name, supported] of Object.entries(tests)) {
+                log('env-log', `${name}: ${supported ? '✅' : '❌'}`);
+            }
+
+            log('env-log', `浏览器: ${navigator.userAgent}`);
+            log('env-log', `页面URL: ${window.location.href}`);
+        }
+
+        async function testCDNConnection() {
+            clearLog('cdn-log');
+            
+            const urls = [
+                'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/package.json',
+                'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js',
+                'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.sharedworker.js'
+            ];
+
+            for (const url of urls) {
+                try {
+                    log('cdn-log', `测试连接: ${url}`);
+                    const response = await fetch(url, { method: 'HEAD' });
+                    if (response.ok) {
+                        log('cdn-log', `连接成功 - 状态: ${response.status}`);
+                    } else {
+                        log('cdn-log', `连接失败 - 状态: ${response.status}`, true);
+                    }
+                } catch (error) {
+                    log('cdn-log', `连接错误: ${error.message}`, true);
+                }
+            }
+        }
+
+        async function testBasicWorker() {
+            clearLog('worker-log');
+            
+            try {
+                log('worker-log', '创建Worker...');
+                const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                const worker = new Worker(workerUrl);
+
+                // 设置超时
+                const timeout = setTimeout(() => {
+                    worker.terminate();
+                    log('worker-log', 'Worker加载超时 (5秒)', true);
+                }, 5000);
+
+                worker.onmessage = (event) => {
+                    clearTimeout(timeout);
+                    log('worker-log', `收到消息: ${JSON.stringify(event.data)}`);
+                    worker.terminate();
+                    log('worker-log', 'Worker已终止');
+                };
+
+                worker.onerror = (error) => {
+                    clearTimeout(timeout);
+                    log('worker-log', `Worker错误: ${error.message}`, true);
+                    worker.terminate();
+                };
+
+                worker.onmessageerror = (error) => {
+                    clearTimeout(timeout);
+                    log('worker-log', `消息错误: ${error}`, true);
+                    worker.terminate();
+                };
+
+                log('worker-log', 'Worker创建成功，等待响应...');
+                
+                // 发送简单测试消息
+                worker.postMessage({
+                    id: 'test-001',
+                    type: 'ping'
+                });
+
+            } catch (error) {
+                log('worker-log', `基础测试失败: ${error.message}`, true);
+            }
+        }
+
+        async function testWorkerMessage() {
+            clearLog('worker-log');
+            
+            try {
+                log('worker-log', '测试Worker消息传递...');
+                const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                const worker = new Worker(workerUrl);
+
+                const timeout = setTimeout(() => {
+                    worker.terminate();
+                    log('worker-log', '消息测试超时', true);
+                }, 10000);
+
+                worker.onmessage = (event) => {
+                    clearTimeout(timeout);
+                    log('worker-log', `收到分析结果: ${JSON.stringify(event.data, null, 2)}`);
+                    worker.terminate();
+                };
+
+                worker.onerror = (error) => {
+                    clearTimeout(timeout);
+                    log('worker-log', `Worker错误: ${error.message}`, true);
+                    worker.terminate();
+                };
+
+                // 发送分析请求
+                const message = {
+                    id: 'test-002',
+                    type: 'analyze_keywords',
+                    payload: {
+                        text: '人工智能技术正在快速发展。机器学习推动了技术进步。',
+                        config: { window: 2, lower: true },
+                        options: { keywords: { num: 5 } }
+                    }
+                };
+
+                log('worker-log', `发送消息: ${JSON.stringify(message, null, 2)}`);
+                worker.postMessage(message);
+
+            } catch (error) {
+                log('worker-log', `消息测试失败: ${error.message}`, true);
+            }
+        }
+
+        async function testFullFunction() {
+            clearLog('full-log');
+            
+            try {
+                log('full-log', '开始完整功能测试...');
+                
+                // 简化的客户端实现
+                class TestClient {
+                    constructor() {
+                        this.worker = null;
+                        this.pendingTasks = new Map();
+                    }
+
+                    async initialize() {
+                        return new Promise((resolve, reject) => {
+                            try {
+                                const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                                this.worker = new Worker(workerUrl);
+
+                                const timeout = setTimeout(() => {
+                                    reject(new Error('Worker初始化超时'));
+                                }, 10000);
+
+                                this.worker.onmessage = (event) => {
+                                    const message = event.data;
+                                    const task = this.pendingTasks.get(message.id);
+                                    
+                                    if (task) {
+                                        clearTimeout(task.timeout);
+                                        this.pendingTasks.delete(message.id);
+                                        task.resolve(message);
+                                    }
+                                };
+
+                                this.worker.onerror = (error) => {
+                                    clearTimeout(timeout);
+                                    reject(error);
+                                };
+
+                                // 发送初始化测试
+                                const testId = 'init-test';
+                                const testTimeout = setTimeout(() => {
+                                    this.pendingTasks.delete(testId);
+                                    clearTimeout(timeout);
+                                    resolve(); // 即使没响应也算初始化成功
+                                }, 3000);
+
+                                this.pendingTasks.set(testId, {
+                                    resolve: () => {
+                                        clearTimeout(timeout);
+                                        clearTimeout(testTimeout);
+                                        resolve();
+                                    },
+                                    reject: () => {
+                                        clearTimeout(timeout);
+                                        clearTimeout(testTimeout);
+                                        reject(new Error('初始化测试失败'));
+                                    },
+                                    timeout: testTimeout
+                                });
+
+                                this.worker.postMessage({
+                                    id: testId,
+                                    type: 'analyze_keywords',
+                                    payload: { text: '测试', config: {}, options: {} }
+                                });
+
+                            } catch (error) {
+                                reject(error);
+                            }
+                        });
+                    }
+
+                    async analyze(text) {
+                        return new Promise((resolve, reject) => {
+                            const id = `task-${Date.now()}`;
+                            
+                            const timeout = setTimeout(() => {
+                                this.pendingTasks.delete(id);
+                                reject(new Error('分析超时'));
+                            }, 15000);
+
+                            this.pendingTasks.set(id, {
+                                resolve: (result) => {
+                                    clearTimeout(timeout);
+                                    resolve(result);
+                                },
+                                reject: (error) => {
+                                    clearTimeout(timeout);
+                                    reject(error);
+                                },
+                                timeout
+                            });
+
+                            this.worker.postMessage({
+                                id,
+                                type: 'analyze_keywords',
+                                payload: {
+                                    text,
+                                    config: { window: 2, lower: true },
+                                    options: { keywords: { num: 5 } }
+                                }
+                            });
+                        });
+                    }
+
+                    terminate() {
+                        if (this.worker) {
+                            this.worker.terminate();
+                            this.worker = null;
+                        }
+                        this.pendingTasks.clear();
+                    }
+                }
+
+                const client = new TestClient();
+                
+                log('full-log', '初始化客户端...');
+                await client.initialize();
+                log('full-log', '客户端初始化成功');
+
+                const testText = '北京是中华人民共和国的首都。上海是经济中心。深圳是科技创新城市。';
+                log('full-log', `开始分析文本: ${testText}`);
+                
+                const result = await client.analyze(testText);
+                log('full-log', `分析完成: ${JSON.stringify(result, null, 2)}`);
+
+                client.terminate();
+                log('full-log', '测试完成，客户端已清理');
+
+            } catch (error) {
+                log('full-log', `完整测试失败: ${error.message}`, true);
+                console.error('完整测试错误:', error);
+            }
+        }
+
+        // 页面加载时自动检查环境
+        window.addEventListener('load', () => {
+            checkEnvironment();
+        });
+    </script>
+</body>
+</html>
