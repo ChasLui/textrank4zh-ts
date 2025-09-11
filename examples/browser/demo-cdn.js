@@ -1,5 +1,5 @@
-// 使用 jsDelivr CDN 加载的 TextRank4ZH-TS 库 (IIFE版本)
-// CDN URL: https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.iife.js
+// 使用 jsDelivr CDN 加载的 TextRank4ZH-TS 库 (IIFE版本，npm包)
+// CDN URL: https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js
 
 // 全局变量
 let keywordAnalyzer = null;
@@ -24,7 +24,7 @@ window.addEventListener('DOMContentLoaded', function() {
     }
     keywordAnalyzer = new TextRank4ZH.TextRankKeyword();
     sentenceAnalyzer = new TextRank4ZH.TextRankSentence();
-    console.log('TextRank4ZH-TS 已成功加载，使用 jsDelivr CDN 版本');
+    console.log('TextRank4ZH-TS 已成功加载，使用 jsDelivr npm CDN 版本');
   } catch (error) {
     console.error('TextRank4ZH-TS 加载失败:', error);
     showError('库加载失败，请检查网络连接或刷新页面重试。错误：' + error.message);
