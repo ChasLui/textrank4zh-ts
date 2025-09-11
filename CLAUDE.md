@@ -87,6 +87,20 @@ npm run lint
 npm run format
 ```
 
+### 发布相关
+```bash
+# 手动发布（交互式）
+npm run release
+
+# 预览发布（不执行实际发布）
+npm run release:dry
+
+# 指定版本类型发布
+npm run release:patch  # 修复版本 (0.1.0 -> 0.1.1)
+npm run release:minor  # 功能版本 (0.1.0 -> 0.2.0) 
+npm run release:major  # 重大版本 (0.1.0 -> 1.0.0)
+```
+
 ### 开发服务器
 ```bash
 # 启动示例服务器
@@ -226,3 +240,85 @@ const client = new TextRankUniversalClient('./dist/index.worker.js');
   const { TextRankKeyword } = window.TextRank4ZH;
 </script>
 ```
+
+## 自动发布流程
+
+项目配置了基于 Conventional Commits 的自动发布系统，当向 `main` 分支推送代码时会自动触发发布流程。
+
+### Conventional Commits 规范
+
+使用以下前缀格式来触发不同类型的版本发布：
+
+#### Patch 版本 (0.1.0 → 0.1.1)
+```bash
+git commit -m "fix: 修复关键词提取的边界情况问题"
+git commit -m "perf: 优化分词算法性能"
+```
+
+#### Minor 版本 (0.1.0 → 0.2.0)  
+```bash
+git commit -m "feat: 添加新的文本摘要算法"
+git commit -m "feat(worker): 增加SharedWorker支持"
+```
+
+#### Major 版本 (0.1.0 → 1.0.0)
+```bash
+git commit -m "feat!: 重构API，移除已弃用方法"
+git commit -m "fix!: 修复分词接口，改变返回格式"
+```
+
+**注意**: 感叹号(!)表示破坏性变更，会触发major版本发布。
+
+### 自动发布工作流程
+
+1. **提交检查**: 系统分析最新commit message
+2. **版本判断**: 根据前缀确定发布类型
+3. **质量检查**: 自动运行lint、test、build
+4. **版本发布**: 执行相应的release命令
+5. **更新日志**: 自动生成CHANGELOG.md
+6. **NPM发布**: 发布到npm registry
+7. **GitHub Release**: 创建GitHub release
+
+### 跳过自动发布的场景
+
+以下commit类型**不会**触发自动发布：
+- `docs:` - 文档更新
+- `style:` - 代码格式化
+- `refactor:` - 重构（无功能变更）
+- `test:` - 测试相关
+- `chore:` - 构建工具、依赖更新等
+- `build:` - 构建系统变更
+- `ci:` - CI配置变更
+
+### 手动发布
+
+如果需要手动控制发布流程：
+
+```bash
+# 预览将要发布的内容
+pnpm run release:dry
+
+# 交互式发布（推荐）
+pnpm run release
+
+# 指定版本类型
+pnpm run release:patch
+pnpm run release:minor  
+pnpm run release:major
+```
+
+### GitHub Actions配置
+
+自动发布需要以下secrets配置：
+- `NPM_TOKEN`: npm发布token
+- `GITHUB_TOKEN`: GitHub API token（自动提供）
+
+发布工作流程位于：`.github/workflows/release.yml`
+
+### 发布注意事项
+
+1. **破坏性变更**: 使用`!`标记时要格外谨慎
+2. **commit message**: 必须准确描述变更内容
+3. **测试覆盖**: 确保新功能有对应测试
+4. **文档更新**: 重大变更需要更新README和示例
+5. **向后兼容**: minor版本应保持API兼容性

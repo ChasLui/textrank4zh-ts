@@ -1,0 +1,188 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [ main ]
+    # 忽略release commit，避免循环触发
+    paths-ignore:
+      - 'CHANGELOG.md'
+
+env:
+  PNPM_CACHE_FOLDER: .pnpm-store
+
+jobs:
+  # 检查是否需要发布
+  check-release:
+    name: Check Release Need
+    runs-on: ubuntu-latest
+    outputs:
+      should-release: ${{ steps.check.outputs.should-release }}
+      release-type: ${{ steps.check.outputs.release-type }}
+      commit-message: ${{ steps.check.outputs.commit-message }}
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # 获取最近两个commit用于比较
+      
+      - name: Check commit message for release keywords
+        id: check
+        run: |
+          # 获取最新的commit message
+          COMMIT_MSG=$(git log -1 --pretty=format:'%s')
+          echo "commit-message=$COMMIT_MSG" >> $GITHUB_OUTPUT
+          echo "Latest commit message: $COMMIT_MSG"
+          
+          # 检查是否是release commit，如果是则跳过
+          if [[ "$COMMIT_MSG" =~ ^chore:\ release\ v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
+            echo "This is a release commit, skipping auto-release"
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # 检查conventional commit格式并确定发布类型
+          if [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_MSG" =~ ^fix(\(.+\))?!: ]] || [[ "$COMMIT_MSG" =~ ^perf(\(.+\))?!: ]]; then
+            # Breaking change - major release
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "release-type=major" >> $GITHUB_OUTPUT
+            echo "🚨 Breaking change detected, will trigger MAJOR release"
+          elif [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?: ]]; then
+            # New feature - minor release
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "release-type=minor" >> $GITHUB_OUTPUT
+            echo "✨ New feature detected, will trigger MINOR release"
+          elif [[ "$COMMIT_MSG" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_MSG" =~ ^perf(\(.+\))?: ]]; then
+            # Bug fix or performance - patch release
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "release-type=patch" >> $GITHUB_OUTPUT
+            echo "🐛 Bug fix detected, will trigger PATCH release"
+          else
+            # 其他类型的commit (docs, style, refactor, test, chore等) 不触发发布
+            echo "should-release=false" >> $GITHUB_OUTPUT
+            echo "📝 Non-release commit type, skipping auto-release"
+            echo "Supported prefixes: feat, fix, perf (with optional ! for breaking changes)"
+          fi
+
+  # 自动发布
+  auto-release:
+    name: Auto Release
+    runs-on: ubuntu-latest
+    needs: check-release
+    if: needs.check-release.outputs.should-release == 'true'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # 获取完整历史，用于changelog生成
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Run quality checks
+        run: |
+          echo "🔍 Running linting..."
+          pnpm run lint
+          
+          echo "🧪 Running tests..."
+          pnpm run test
+          
+          echo "🏗️ Building project..."
+          pnpm run build
+      
+      - name: Release with appropriate version bump
+        run: |
+          RELEASE_TYPE="${{ needs.check-release.outputs.release-type }}"
+          COMMIT_MSG="${{ needs.check-release.outputs.commit-message }}"
+          
+          echo "🚀 Starting $RELEASE_TYPE release..."
+          echo "📝 Triggered by commit: $COMMIT_MSG"
+          
+          case $RELEASE_TYPE in
+            "major")
+              echo "🚨 Performing MAJOR release (breaking changes)"
+              pnpm run release:major -- --ci
+              ;;
+            "minor")
+              echo "✨ Performing MINOR release (new features)"
+              pnpm run release:minor -- --ci
+              ;;
+            "patch")
+              echo "🐛 Performing PATCH release (bug fixes)"
+              pnpm run release:patch -- --ci
+              ;;
+            *)
+              echo "❌ Unknown release type: $RELEASE_TYPE"
+              exit 1
+              ;;
+          esac
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      
+      - name: Notify release completion
+        if: success()
+        run: |
+          echo "✅ Release completed successfully!"
+          echo "📦 New package version has been published to npm"
+          echo "🏷️ GitHub release has been created"
+          echo "📋 CHANGELOG.md has been updated"
+
+  # 发布失败通知
+  release-failure:
+    name: Release Failure Notification
+    runs-on: ubuntu-latest
+    needs: [check-release, auto-release]
+    if: needs.check-release.outputs.should-release == 'true' && failure()
+    
+    steps:
+      - name: Notify failure
+        run: |
+          echo "❌ Auto-release failed!"
+          echo "💡 Please check the logs and run manual release if needed:"
+          echo "   pnpm run release:dry   # Check what would be released"
+          echo "   pnpm run release       # Manual release"
+          exit 1
+
+  # 跳过发布通知（可选）
+  skip-release:
+    name: Skip Release Notification  
+    runs-on: ubuntu-latest
+    needs: check-release
+    if: needs.check-release.outputs.should-release == 'false'
+    
+    steps:
+      - name: Notify skip
+        run: |
+          COMMIT_MSG="${{ needs.check-release.outputs.commit-message }}"
+          echo "⏭️ Skipping auto-release"
+          echo "📝 Commit message: $COMMIT_MSG"
+          echo ""
+          echo "💡 To trigger auto-release, use conventional commit prefixes:"
+          echo "   feat: new feature (minor release)"
+          echo "   fix: bug fix (patch release)" 
+          echo "   perf: performance improvement (patch release)"
+          echo "   feat!: breaking change (major release)"
+          echo "   fix!: breaking fix (major release)"
+          echo ""
+          echo "🔧 For manual release, run: pnpm run release"
