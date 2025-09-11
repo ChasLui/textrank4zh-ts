@@ -117,9 +117,9 @@
             clearLog('cdn-log');
             
             const urls = [
-                'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/package.json',
-                'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js',
-                'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.sharedworker.js'
+                '../../dist/index.worker.js',
+                '../../dist/index.sharedworker.js',
+                '../../package.json'
             ];
 
             for (const url of urls) {
@@ -142,7 +142,7 @@
             
             try {
                 log('worker-log', '创建Worker...');
-                const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                const workerUrl = '../../dist/index.worker.js';
                 const worker = new Worker(workerUrl);
 
                 // 设置超时
@@ -188,7 +188,7 @@
             
             try {
                 log('worker-log', '测试Worker消息传递...');
-                const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                const workerUrl = '../../dist/index.worker.js';
                 const worker = new Worker(workerUrl);
 
                 const timeout = setTimeout(() => {
@@ -243,7 +243,7 @@
                     async initialize() {
                         return new Promise((resolve, reject) => {
                             try {
-                                const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                                const workerUrl = '../../dist/index.worker.js';
                                 this.worker = new Worker(workerUrl);
 
                                 const timeout = setTimeout(() => {

@@ -347,8 +347,8 @@
 
             async initSharedWorker() {
                 try {
-                    // 优先使用CDN的SharedWorker文件
-                    const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.sharedworker.js';
+                    // 使用GitHub Pages同源的SharedWorker文件
+                    const workerUrl = '../../dist/index.sharedworker.js';
                     this.worker = new SharedWorker(workerUrl);
                     this.sharedWorkerPort = this.worker.port;
                     
@@ -359,10 +359,10 @@
                     
                     await this.waitForWorkerReady();
                 } catch (error) {
-                    console.warn('SharedWorker初始化失败，尝试本地文件:', error);
-                    // 降级到本地文件
+                    console.warn('SharedWorker初始化失败，尝试相对路径:', error);
+                    // 降级到其他相对路径
                     try {
-                        this.worker = new SharedWorker('./textrank-sharedworker-standalone.js');
+                        this.worker = new SharedWorker('../dist/index.sharedworker.js');
                         this.sharedWorkerPort = this.worker.port;
                         this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
                         this.sharedWorkerPort.onerror = this.handleError.bind(this);
@@ -377,18 +377,18 @@
 
             async initDedicatedWorker() {
                 try {
-                    // 优先使用CDN的Worker文件
-                    const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                    // 使用GitHub Pages同源的Worker文件
+                    const workerUrl = '../../dist/index.worker.js';
                     this.worker = new Worker(workerUrl);
                     this.worker.onmessage = this.handleMessage.bind(this);
                     this.worker.onerror = this.handleError.bind(this);
                     
                     await this.waitForWorkerReady();
                 } catch (error) {
-                    console.warn('DedicatedWorker初始化失败，尝试本地文件:', error);
-                    // 降级到本地文件
+                    console.warn('DedicatedWorker初始化失败，尝试相对路径:', error);
+                    // 降级到其他相对路径
                     try {
-                        this.worker = new Worker('./textrank-worker-standalone.js');
+                        this.worker = new Worker('../dist/index.worker.js');
                         this.worker.onmessage = this.handleMessage.bind(this);
                         this.worker.onerror = this.handleError.bind(this);
                         await this.waitForWorkerReady();
@@ -1103,8 +1103,8 @@
                     client = null;
                 }
 
-                // 创建新客户端（不使用本地文件路径，强制使用CDN）
-                client = new TextRankUniversalClient('https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js', {
+                // 创建新客户端（使用同源Worker文件）
+                client = new TextRankUniversalClient('../../dist/index.worker.js', {
                     timeout: 30000,
                     maxConcurrent: 10,
                     preferredWorkerType: workerType,

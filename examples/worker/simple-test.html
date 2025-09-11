@@ -91,8 +91,8 @@
             async initialize(mode = 'auto') {
                 try {
                     if (mode === 'worker' || mode === 'auto') {
-                        // 尝试使用CDN Worker
-                        const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                        // 使用同源Worker文件
+                        const workerUrl = '../../dist/index.worker.js';
                         this.worker = new Worker(workerUrl);
                         
                         // 设置超时测试
