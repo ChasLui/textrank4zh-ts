@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextRank4ZH-TS Worker 简单测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #005a9e;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .error {
+            background: #ffebee;
+            border-color: #f44336;
+            color: #c62828;
+        }
+        .success {
+            background: #e8f5e8;
+            border-color: #4caf50;
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <h1>🧪 TextRank4ZH-TS Worker 简单测试</h1>
+    
+    <div class="container">
+        <h3>环境检测</h3>
+        <div id="environment" class="result">正在检测环境...</div>
+    </div>
+    
+    <div class="container">
+        <h3>Worker 测试</h3>
+        <button onclick="testSyncMode()">测试同步模式</button>
+        <button onclick="testWorkerMode()">测试Worker模式</button>
+        <button onclick="testSimpleAnalysis()">简单文本分析</button>
+        <div id="workerResult" class="result">点击上方按钮开始测试...</div>
+    </div>
+    
+    <div class="container">
+        <h3>性能对比</h3>
+        <button onclick="performanceTest()">运行性能测试</button>
+        <div id="performanceResult" class="result">点击运行性能测试...</div>
+    </div>
+
+    <script>
+        // 简化版Worker客户端，只用于测试
+        class SimpleWorkerClient {
+            constructor() {
+                this.isInitialized = false;
+                this.mode = 'sync';
+            }
+
+            async initialize(mode = 'auto') {
+                try {
+                    if (mode === 'worker' || mode === 'auto') {
+                        // 尝试使用CDN Worker
+                        const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                        this.worker = new Worker(workerUrl);
+                        
+                        // 设置超时测试
+                        const timeout = new Promise((_, reject) => 
+                            setTimeout(() => reject(new Error('Worker加载超时')), 5000)
+                        );
+                        
+                        const ready = new Promise((resolve, reject) => {
+                            this.worker.onmessage = (e) => {
+                                if (e.data.type === 'ready' || e.data.id) {
+                                    resolve();
+                                }
+                            };
+                            this.worker.onerror = reject;
+                            // 发送测试消息
+                            this.worker.postMessage({ 
+                                type: 'test', 
+                                id: 'init-test',
+                                payload: { text: '测试', config: {}, options: {} }
+                            });
+                        });
+
+                        await Promise.race([ready, timeout]);
+                        this.mode = 'worker';
+                        console.log('Worker模式初始化成功');
+                    }
+                } catch (error) {
+                    console.warn('Worker初始化失败，使用同步模式:', error);
+                    this.mode = 'sync';
+                    if (this.worker) {
+                        this.worker.terminate();
+                        this.worker = null;
+                    }
+                }
+                
+                this.isInitialized = true;
+                return this.mode;
+            }
+
+            async analyze(text) {
+                if (!this.isInitialized) {
+                    throw new Error('客户端未初始化');
+                }
+
+                if (this.mode === 'sync') {
+                    return this.syncAnalyze(text);
+                } else {
+                    return this.workerAnalyze(text);
+                }
+            }
+
+            syncAnalyze(text) {
+                const startTime = Date.now();
+                
+                // 简单的关键词提取模拟
+                const words = text.match(/[\u4e00-\u9fa5]{2,}/g) || [];
+                const keywords = words.slice(0, 5).map((word, i) => ({
+                    word,
+                    weight: Math.random() * (1 - i * 0.1)
+                }));
+
+                // 简单的句子分割
+                const sentences = text.split(/[。！？；]/)
+                    .filter(s => s.trim().length > 0)
+                    .slice(0, 3)
+                    .map((sentence, i) => ({
+                        index: i,
+                        sentence: sentence.trim(),
+                        weight: Math.random()
+                    }));
+
+                return {
+                    mode: 'sync',
+                    keywords,
+                    sentences,
+                    duration: Date.now() - startTime
+                };
+            }
+
+            workerAnalyze(text) {
+                return new Promise((resolve, reject) => {
+                    const id = `task-${Date.now()}`;
+                    const startTime = Date.now();
+                    
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Worker分析超时'));
+                    }, 10000);
+
+                    this.worker.onmessage = (e) => {
+                        if (e.data.id === id) {
+                            clearTimeout(timeout);
+                            resolve({
+                                mode: 'worker',
+                                ...e.data.payload,
+                                duration: Date.now() - startTime
+                            });
+                        }
+                    };
+
+                    this.worker.postMessage({
+                        id,
+                        type: 'analyze_keywords',
+                        payload: { text, config: { window: 2 }, options: { keywords: { num: 5 } } }
+                    });
+                });
+            }
+
+            terminate() {
+                if (this.worker) {
+                    this.worker.terminate();
+                    this.worker = null;
+                }
+                this.isInitialized = false;
+            }
+        }
+
+        // 全局客户端
+        let client = null;
+
+        // 页面加载时检测环境
+        window.addEventListener('load', () => {
+            checkEnvironment();
+        });
+
+        function checkEnvironment() {
+            const envDiv = document.getElementById('environment');
+            
+            const support = {
+                worker: typeof Worker !== 'undefined',
+                sharedWorker: typeof SharedWorker !== 'undefined',
+                transferable: typeof ArrayBuffer !== 'undefined',
+                textEncoder: typeof TextEncoder !== 'undefined'
+            };
+
+            envDiv.innerHTML = `
+🔍 浏览器环境检测:
+
+Worker支持:
+- DedicatedWorker: ${support.worker ? '✅ 支持' : '❌ 不支持'}
+- SharedWorker: ${support.sharedWorker ? '✅ 支持' : '❌ 不支持'}
+- Transferable对象: ${support.transferable ? '✅ 支持' : '❌ 不支持'}
+- TextEncoder: ${support.textEncoder ? '✅ 支持' : '❌ 不支持'}
+
+浏览器信息:
+- User Agent: ${navigator.userAgent}
+- 推荐模式: ${support.worker ? 'Worker模式' : '同步模式'}
+            `;
+            envDiv.className = 'result success';
+        }
+
+        async function testSyncMode() {
+            const resultDiv = document.getElementById('workerResult');
+            resultDiv.textContent = '🔄 测试同步模式...';
+            resultDiv.className = 'result';
+
+            try {
+                if (client) {
+                    client.terminate();
+                }
+
+                client = new SimpleWorkerClient();
+                await client.initialize('sync');
+
+                const testText = '人工智能技术在自然语言处理领域取得了重大突破。机器学习推动了技术发展。';
+                const result = await client.analyze(testText);
+
+                resultDiv.innerHTML = `
+✅ 同步模式测试成功!
+
+结果:
+- 模式: ${result.mode}
+- 处理时间: ${result.duration}ms
+- 关键词数量: ${result.keywords?.length || 0}
+- 句子数量: ${result.sentences?.length || 0}
+
+关键词:
+${result.keywords?.map((k, i) => `${i+1}. ${k.word} (${k.weight.toFixed(3)})`).join('\n') || '无'}
+
+测试时间: ${new Date().toLocaleTimeString()}
+                `;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 同步模式测试失败: ${error.message}`;
+                resultDiv.className = 'result error';
+                console.error('同步模式测试失败:', error);
+            }
+        }
+
+        async function testWorkerMode() {
+            const resultDiv = document.getElementById('workerResult');
+            resultDiv.textContent = '🔄 测试Worker模式...';
+            resultDiv.className = 'result';
+
+            try {
+                if (client) {
+                    client.terminate();
+                }
+
+                client = new SimpleWorkerClient();
+                const mode = await client.initialize('worker');
+
+                const testText = '人工智能技术在自然语言处理领域取得了重大突破。机器学习推动了技术发展。';
+                const result = await client.analyze(testText);
+
+                resultDiv.innerHTML = `
+✅ Worker模式测试成功!
+
+结果:
+- 实际模式: ${result.mode} (请求模式: worker)
+- 处理时间: ${result.duration}ms
+- 关键词数量: ${result.keywords?.length || 0}
+- 句子数量: ${result.sentences?.length || 0}
+
+${result.mode === 'sync' ? 
+    '💡 注意: Worker加载失败，已自动降级到同步模式' : 
+    '🚀 Worker模式运行正常'
+}
+
+关键词:
+${result.keywords?.map((k, i) => `${i+1}. ${k.word} (${k.weight.toFixed(3)})`).join('\n') || '无'}
+
+测试时间: ${new Date().toLocaleTimeString()}
+                `;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Worker模式测试失败: ${error.message}`;
+                resultDiv.className = 'result error';
+                console.error('Worker模式测试失败:', error);
+            }
+        }
+
+        async function testSimpleAnalysis() {
+            const resultDiv = document.getElementById('workerResult');
+            resultDiv.textContent = '🔄 执行简单文本分析...';
+            resultDiv.className = 'result';
+
+            try {
+                if (!client || !client.isInitialized) {
+                    client = new SimpleWorkerClient();
+                    await client.initialize('auto');
+                }
+
+                const testTexts = [
+                    '北京是中华人民共和国的首都，是全国政治中心。',
+                    '人工智能技术正在改变我们的生活方式。',
+                    '机器学习和深度学习推动了科技进步。'
+                ];
+
+                const results = [];
+                for (let i = 0; i < testTexts.length; i++) {
+                    const result = await client.analyze(testTexts[i]);
+                    results.push({
+                        text: testTexts[i],
+                        result
+                    });
+                }
+
+                const totalTime = results.reduce((sum, r) => sum + r.result.duration, 0);
+                const avgTime = totalTime / results.length;
+
+                resultDiv.innerHTML = `
+✅ 文本分析测试完成!
+
+测试概况:
+- 分析文档数: ${results.length}
+- 总耗时: ${totalTime}ms
+- 平均耗时: ${avgTime.toFixed(2)}ms
+- 运行模式: ${results[0]?.result?.mode || '未知'}
+
+详细结果:
+${results.map((r, i) => `
+文档 ${i+1}: ${r.text.substring(0, 20)}...
+- 耗时: ${r.result.duration}ms
+- 关键词: ${r.result.keywords?.map(k => k.word).join(', ') || '无'}
+`).join('')}
+
+测试时间: ${new Date().toLocaleTimeString()}
+                `;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 文本分析测试失败: ${error.message}`;
+                resultDiv.className = 'result error';
+                console.error('文本分析测试失败:', error);
+            }
+        }
+
+        async function performanceTest() {
+            const resultDiv = document.getElementById('performanceResult');
+            resultDiv.textContent = '🔄 运行性能测试...';
+            resultDiv.className = 'result';
+
+            try {
+                const testText = '人工智能技术在自然语言处理领域取得了重大突破。机器学习和深度学习推动了人工智能的快速发展。神经网络模型能够理解复杂的语言结构。';
+
+                // 测试同步模式
+                const syncClient = new SimpleWorkerClient();
+                await syncClient.initialize('sync');
+                
+                const syncResults = [];
+                for (let i = 0; i < 5; i++) {
+                    const result = await syncClient.analyze(testText);
+                    syncResults.push(result.duration);
+                }
+                syncClient.terminate();
+
+                // 测试Worker模式
+                const workerClient = new SimpleWorkerClient();
+                const workerMode = await workerClient.initialize('worker');
+                
+                const workerResults = [];
+                for (let i = 0; i < 5; i++) {
+                    const result = await workerClient.analyze(testText);
+                    workerResults.push(result.duration);
+                }
+                workerClient.terminate();
+
+                const syncAvg = syncResults.reduce((sum, t) => sum + t, 0) / syncResults.length;
+                const workerAvg = workerResults.reduce((sum, t) => sum + t, 0) / workerResults.length;
+
+                resultDiv.innerHTML = `
+📊 性能测试报告:
+
+测试配置:
+- 测试文本长度: ${testText.length} 字符
+- 每种模式测试次数: 5 次
+
+同步模式结果:
+- 平均耗时: ${syncAvg.toFixed(2)}ms
+- 最快: ${Math.min(...syncResults)}ms
+- 最慢: ${Math.max(...syncResults)}ms
+- 详细: [${syncResults.join(', ')}]ms
+
+Worker模式结果:
+- 实际模式: ${workerMode}
+- 平均耗时: ${workerAvg.toFixed(2)}ms
+- 最快: ${Math.min(...workerResults)}ms
+- 最慢: ${Math.max(...workerResults)}ms
+- 详细: [${workerResults.join(', ')}]ms
+
+性能对比:
+- 性能差异: ${Math.abs(workerAvg - syncAvg).toFixed(2)}ms
+- 更快模式: ${workerAvg < syncAvg ? 'Worker' : '同步'}模式
+- 性能提升: ${Math.abs((syncAvg - workerAvg) / syncAvg * 100).toFixed(1)}%
+
+结论: ${workerMode === 'worker' ? 
+    (workerAvg < syncAvg ? '🚀 Worker模式性能更佳' : '💡 同步模式在简单任务中更快') :
+    '⚠️ Worker加载失败，建议检查网络连接'
+}
+
+测试时间: ${new Date().toLocaleTimeString()}
+                `;
+                resultDiv.className = 'result success';
+
+            } catch (error) {
+                resultDiv.innerHTML = `❌ 性能测试失败: ${error.message}`;
+                resultDiv.className = 'result error';
+                console.error('性能测试失败:', error);
+            }
+        }
+    </script>
+</body>
+</html>

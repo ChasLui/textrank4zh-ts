@@ -289,12 +289,15 @@
                 this.pendingTasks = new Map();
                 this.connectionCount = 0;
                 this.isInitialized = false;
+                this._fallbackCount = 0;
                 
                 // 数据传输工具
                 this.dataTransfer = new WorkerDataTransfer();
             }
 
             async initialize() {
+                // 重置降级计数
+                this._fallbackCount = 0;
                 this.currentWorkerType = this.selectWorkerType();
                 
                 try {
@@ -343,28 +346,65 @@
             }
 
             async initSharedWorker() {
-                this.worker = new SharedWorker('./textrank-sharedworker-standalone.js');
-                this.sharedWorkerPort = this.worker.port;
-                
-                this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
-                this.sharedWorkerPort.onerror = this.handleError.bind(this);
-                this.sharedWorkerPort.start();
-                this.connectionCount++;
-                
-                await this.waitForWorkerReady();
+                try {
+                    // 优先使用CDN的SharedWorker文件
+                    const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.sharedworker.js';
+                    this.worker = new SharedWorker(workerUrl);
+                    this.sharedWorkerPort = this.worker.port;
+                    
+                    this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
+                    this.sharedWorkerPort.onerror = this.handleError.bind(this);
+                    this.sharedWorkerPort.start();
+                    this.connectionCount++;
+                    
+                    await this.waitForWorkerReady();
+                } catch (error) {
+                    console.warn('SharedWorker初始化失败，尝试本地文件:', error);
+                    // 降级到本地文件
+                    try {
+                        this.worker = new SharedWorker('./textrank-sharedworker-standalone.js');
+                        this.sharedWorkerPort = this.worker.port;
+                        this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
+                        this.sharedWorkerPort.onerror = this.handleError.bind(this);
+                        this.sharedWorkerPort.start();
+                        this.connectionCount++;
+                        await this.waitForWorkerReady();
+                    } catch (localError) {
+                        throw new Error(`SharedWorker加载失败: ${localError.message}`);
+                    }
+                }
             }
 
             async initDedicatedWorker() {
-                this.worker = new Worker('./textrank-worker-standalone.js');
-                this.worker.onmessage = this.handleMessage.bind(this);
-                this.worker.onerror = this.handleError.bind(this);
-                
-                await this.waitForWorkerReady();
+                try {
+                    // 优先使用CDN的Worker文件
+                    const workerUrl = 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js';
+                    this.worker = new Worker(workerUrl);
+                    this.worker.onmessage = this.handleMessage.bind(this);
+                    this.worker.onerror = this.handleError.bind(this);
+                    
+                    await this.waitForWorkerReady();
+                } catch (error) {
+                    console.warn('DedicatedWorker初始化失败，尝试本地文件:', error);
+                    // 降级到本地文件
+                    try {
+                        this.worker = new Worker('./textrank-worker-standalone.js');
+                        this.worker.onmessage = this.handleMessage.bind(this);
+                        this.worker.onerror = this.handleError.bind(this);
+                        await this.waitForWorkerReady();
+                    } catch (localError) {
+                        throw new Error(`DedicatedWorker加载失败: ${localError.message}`);
+                    }
+                }
             }
 
             async waitForWorkerReady() {
                 return new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => reject(new Error('Worker 初始化超时')), 5000);
+                    const timeout = setTimeout(() => {
+                        // 恢复原始处理器
+                        this.restoreOriginalHandlers();
+                        reject(new Error('Worker 初始化超时'));
+                    }, 5000);
                     
                     const testMessage = {
                         id: 'init-test',
@@ -372,28 +412,71 @@
                         payload: { text: '', config: {}, options: {} }
                     };
 
-                    const originalHandler = this.handleMessage.bind(this);
-                    const testHandler = (event) => {
-                        if (event.data.id === 'init-test') {
-                            clearTimeout(timeout);
-                            resolve();
-                        } else {
-                            originalHandler(event);
-                        }
+                    // 保存原始处理器
+                    this._originalHandlers = {
+                        sharedWorkerHandler: this.sharedWorkerPort ? this.sharedWorkerPort.onmessage : null,
+                        workerHandler: this.worker ? this.worker.onmessage : null
                     };
 
-                    if (this.sharedWorkerPort) {
-                        this.sharedWorkerPort.onmessage = testHandler;
-                        this.sharedWorkerPort.postMessage(testMessage);
-                    } else if (this.worker) {
-                        this.worker.onmessage = testHandler;
-                        this.worker.postMessage(testMessage);
+                    const testHandler = (event) => {
+                        if (event.data && event.data.id === 'init-test') {
+                            clearTimeout(timeout);
+                            // 恢复原始处理器
+                            this.restoreOriginalHandlers();
+                            resolve();
+                        }
+                        // 移除其他事件的处理，避免死循环
+                    };
+
+                    try {
+                        if (this.sharedWorkerPort) {
+                            this.sharedWorkerPort.onmessage = testHandler;
+                            this.sharedWorkerPort.postMessage(testMessage);
+                        } else if (this.worker) {
+                            this.worker.onmessage = testHandler;
+                            this.worker.postMessage(testMessage);
+                        } else {
+                            clearTimeout(timeout);
+                            reject(new Error('没有可用的Worker'));
+                        }
+                    } catch (error) {
+                        clearTimeout(timeout);
+                        this.restoreOriginalHandlers();
+                        reject(error);
                     }
                 });
             }
 
+            restoreOriginalHandlers() {
+                if (this._originalHandlers) {
+                    if (this.sharedWorkerPort && this._originalHandlers.sharedWorkerHandler) {
+                        this.sharedWorkerPort.onmessage = this._originalHandlers.sharedWorkerHandler;
+                    } else if (this.sharedWorkerPort) {
+                        this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
+                    }
+                    
+                    if (this.worker && this._originalHandlers.workerHandler) {
+                        this.worker.onmessage = this._originalHandlers.workerHandler;
+                    } else if (this.worker) {
+                        this.worker.onmessage = this.handleMessage.bind(this);
+                    }
+                    
+                    delete this._originalHandlers;
+                }
+            }
+
             async fallbackToNextWorkerType() {
                 console.warn(`正在从 ${this.currentWorkerType} 降级...`);
+
+                // 防止无限递归，添加降级计数
+                if (!this._fallbackCount) {
+                    this._fallbackCount = 0;
+                }
+                this._fallbackCount++;
+
+                if (this._fallbackCount > 3) {
+                    throw new Error('降级次数过多，初始化失败');
+                }
 
                 if (this.currentWorkerType === 'shared') {
                     this.currentWorkerType = 'dedicated';
@@ -407,7 +490,18 @@
                     throw new Error('所有 Worker 类型都不可用');
                 }
 
-                await this.initialize();
+                try {
+                    await this.initialize();
+                } catch (error) {
+                    // 如果初始化仍然失败，强制使用同步模式
+                    if (this.options.fallbackToSync && this.currentWorkerType !== 'sync') {
+                        console.warn('强制降级到同步模式:', error);
+                        this.currentWorkerType = 'sync';
+                        this.isInitialized = true;
+                    } else {
+                        throw error;
+                    }
+                }
             }
 
             handleMessage(event) {
@@ -559,24 +653,44 @@
             }
 
             terminate() {
+                // 清理所有待处理任务
                 this.pendingTasks.forEach(task => {
-                    clearTimeout(task.timeout);
-                    task.reject(new Error('客户端已终止'));
+                    if (task.timeout) {
+                        clearTimeout(task.timeout);
+                    }
+                    if (task.reject) {
+                        task.reject(new Error('客户端已终止'));
+                    }
                 });
                 this.pendingTasks.clear();
 
+                // 恢复原始处理器
+                this.restoreOriginalHandlers();
+
+                // 清理Worker资源
                 if (this.worker) {
-                    if (this.currentWorkerType === 'shared' && this.sharedWorkerPort) {
-                        this.sharedWorkerPort.close();
-                        this.connectionCount--;
-                    } else if (this.currentWorkerType === 'dedicated') {
-                        this.worker.terminate();
+                    try {
+                        if (this.currentWorkerType === 'shared' && this.sharedWorkerPort) {
+                            this.sharedWorkerPort.onmessage = null;
+                            this.sharedWorkerPort.onerror = null;
+                            this.sharedWorkerPort.close();
+                            this.connectionCount = Math.max(0, this.connectionCount - 1);
+                        } else if (this.currentWorkerType === 'dedicated') {
+                            this.worker.onmessage = null;
+                            this.worker.onerror = null;
+                            this.worker.terminate();
+                        }
+                    } catch (error) {
+                        console.warn('Worker终止时出现错误:', error);
                     }
                     this.worker = null;
                     this.sharedWorkerPort = null;
                 }
 
+                // 重置状态
                 this.isInitialized = false;
+                this.currentWorkerType = null;
+                this._fallbackCount = 0;
             }
 
             static supportsWorkerType(type) {
@@ -970,20 +1084,37 @@
             const fallbackToSync = document.getElementById('fallbackToSync').checked;
 
             try {
-                resultDiv.textContent = '正在初始化客户端...';
+                resultDiv.innerHTML = `
+🔄 正在初始化客户端...
+
+配置信息:
+- 首选类型: ${workerType}
+- 允许降级: ${fallbackToSync ? '是' : '否'}
+- 初始化状态: 进行中...
+                `;
                 
+                // 清理现有客户端
                 if (client) {
-                    client.terminate();
+                    try {
+                        client.terminate();
+                    } catch (termError) {
+                        console.warn('终止现有客户端时出错:', termError);
+                    }
+                    client = null;
                 }
 
-                client = new TextRankUniversalClient('./textrank-worker-standalone.js', {
+                // 创建新客户端（不使用本地文件路径，强制使用CDN）
+                client = new TextRankUniversalClient('https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js', {
                     timeout: 30000,
                     maxConcurrent: 10,
                     preferredWorkerType: workerType,
                     fallbackToSync: fallbackToSync
                 });
 
+                // 添加初始化进度反馈
+                const initStartTime = Date.now();
                 await client.initialize();
+                const initDuration = Date.now() - initStartTime;
                 
                 const status = client.getStatus();
                 
@@ -993,11 +1124,20 @@
 配置信息:
 - 首选类型: ${workerType}
 - 实际使用: ${status.type}
-- 连接状态: ${status.available ? '已连接' : '未连接'}
+- 连接状态: ${status.available ? '✅ 已连接' : '❌ 未连接'}
 ${status.connectionCount !== undefined ? `- 连接数: ${status.connectionCount}` : ''}
 - 待处理任务: ${status.pendingTasks}
 
-初始化时间: ${new Date().toLocaleTimeString()}
+性能信息:
+- 初始化耗时: ${initDuration}ms
+- 初始化时间: ${new Date().toLocaleTimeString()}
+
+${status.type === 'sync' ? 
+    '💡 注意: 当前使用同步模式，可能是因为Worker文件加载失败' : 
+    status.type === 'dedicated' ? 
+    '⚡ 使用专用Worker，获得良好性能' : 
+    '🚀 使用共享Worker，获得最佳性能和资源利用率'
+}
                 `;
 
                 // 更新状态显示
@@ -1005,8 +1145,27 @@ ${status.connectionCount !== undefined ? `- 连接数: ${status.connectionCount}
                 document.getElementById('connectionStatus').textContent = status.available ? '已连接' : '未连接';
 
             } catch (error) {
-                resultDiv.innerHTML = `❌ 初始化失败: ${error.message}`;
-                console.error('初始化失败:', error);
+                resultDiv.innerHTML = `
+❌ 初始化失败: ${error.message}
+
+可能的原因:
+- 网络连接问题
+- Worker文件加载失败  
+- 浏览器不支持所选的Worker类型
+
+建议:
+1. 检查网络连接
+2. 尝试选择"自动选择"模式
+3. 启用"允许降级到同步模式"
+4. 刷新页面重试
+
+错误时间: ${new Date().toLocaleTimeString()}
+                `;
+                console.error('初始化详细错误:', error);
+                
+                // 重置状态显示
+                document.getElementById('currentType').textContent = '初始化失败';
+                document.getElementById('connectionStatus').textContent = '未连接';
             }
         }
 
