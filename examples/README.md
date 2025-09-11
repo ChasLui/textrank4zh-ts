@@ -84,18 +84,22 @@ tr4w.analyze(text, {
 
 ### 浏览器中使用
 
+#### 方式1: CDN + IIFE (推荐)
+
 ```html
 <!DOCTYPE html>
 <html>
 <head>
-  <title>TextRank4ZH-TS 示例</title>
+  <title>TextRank4ZH-TS CDN 示例</title>
 </head>
 <body>
-  <script type="module">
-    import { TextRankKeyword, TextRankSentence } from 'https://unpkg.com/textrank4zh-ts/dist/index.mjs';
+  <!-- 从 jsDelivr CDN 加载 IIFE 版本 -->
+  <script src="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.iife.js"></script>
+  <script>
+    // 使用全局变量 TextRank4ZH
+    const { TextRankKeyword, TextRankSentence } = TextRank4ZH;
     
     const text = '你的中文文本';
-    
     const tr4w = new TextRankKeyword();
     tr4w.analyze(text);
     console.log(tr4w.getKeywords(5));
@@ -103,6 +107,35 @@ tr4w.analyze(text, {
 </body>
 </html>
 ```
+
+#### 方式2: CDN + ES Module
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+  <title>TextRank4ZH-TS ES Module 示例</title>
+</head>
+<body>
+  <script type="module">
+    import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.mjs';
+    
+    const text = '你的中文文本';
+    const tr4w = new TextRankKeyword();
+    tr4w.analyze(text);
+    console.log(tr4w.getKeywords(5));
+  </script>
+</body>
+</html>
+```
+
+#### 可用的 CDN 地址
+
+| 格式 | jsDelivr CDN URL |
+|------|------------------|
+| IIFE | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.iife.js` |
+| ES Module | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.mjs` |
+| Worker | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.worker.js` |
 
 ## 🧪 测试用例作为示例
 

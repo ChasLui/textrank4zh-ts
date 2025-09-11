@@ -82,8 +82,8 @@
     </style>
 </head>
 <body>
-    <h1>🚀 TextRank4ZH-TS IIFE 使用演示</h1>
-    <p>这个示例展示如何在浏览器中直接使用 TextRank4ZH-TS，无需构建工具！</p>
+    <h1>🚀 TextRank4ZH-TS IIFE CDN 使用演示</h1>
+    <p>这个示例展示如何通过 jsDelivr CDN 在浏览器中直接使用 TextRank4ZH-TS，无需构建工具！</p>
 
     <div class="status" id="status">
         <strong>初始化状态:</strong> <span id="statusText">正在加载库...</span>
@@ -112,16 +112,16 @@
         </div>
     </div>
 
-    <!-- 引入 IIFE 构建版本 -->
-    <script src="../../dist/index.iife.js"></script>
+    <!-- 从 jsDelivr CDN 引入 IIFE 构建版本 -->
+    <script src="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@latest/dist/index.iife.js"></script>
     <script>
         // 检查全局变量是否加载成功
         if (typeof TextRank4ZH === 'undefined') {
             document.getElementById('statusText').innerHTML = 
-                '❌ <strong>加载失败</strong> - 请确保先运行 <code>npm run build</code>';
+                '❌ <strong>CDN 加载失败</strong> - 请检查网络连接或 CDN 可用性';
         } else {
             document.getElementById('statusText').innerHTML = 
-                '✅ <strong>库已加载</strong> - 全局变量 TextRank4ZH 可用';
+                '✅ <strong>CDN 库已加载</strong> - 全局变量 TextRank4ZH 可用';
         }
 
         // 解构需要的类和实例
@@ -139,7 +139,7 @@
             const schedulerStatus = mainThreadScheduler.getStatus();
             
             const statusHtml = `
-✅ <strong>库已加载</strong> - 全局变量 TextRank4ZH 可用
+✅ <strong>CDN 库已加载</strong> - 全局变量 TextRank4ZH 可用
 
 <strong>环境支持状态:</strong>
 • SharedWorker: ${status.sharedWorker ? '✅ 支持' : '❌ 不支持'}
