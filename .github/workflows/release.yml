@@ -7,6 +7,13 @@ on:
     paths-ignore:
       - 'CHANGELOG.md'
 
+# 为GitHub Actions bot赋予必要权限
+permissions:
+  contents: write    # 允许修改仓库内容（推送commits和tags）
+  actions: read      # 允许读取actions状态
+  packages: write    # 允许发布packages
+  pull-requests: read # 允许读取PR信息
+
 env:
   PNPM_CACHE_FOLDER: .pnpm-store
 
@@ -77,6 +84,7 @@ jobs:
         with:
           fetch-depth: 0  # 获取完整历史，用于changelog生成
           token: ${{ secrets.GITHUB_TOKEN }}
+          persist-credentials: true  # 保持认证信息，用于后续git操作
       
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
@@ -97,6 +105,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global url."https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/".insteadOf "https://github.com/"
       
       - name: Run quality checks
         run: |

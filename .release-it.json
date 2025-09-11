@@ -2,7 +2,8 @@
   "git": {
     "commitMessage": "chore: release v${version}",
     "tagName": "v${version}",
-    "pushArgs": ["--follow-tags"]
+    "pushArgs": ["--follow-tags"],
+    "requireBranch": "main"
   },
   "github": {
     "release": true,
