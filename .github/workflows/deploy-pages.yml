@@ -66,7 +66,7 @@ jobs:
       
       - name: Create live demo script
         run: |
-          cat > _site/browser/demo-live.js << 'EOF'
+          cat > _site/browser/demo-live.js << \EOF
           // 使用实际构建的 TextRank4ZH-TS 库
           import { TextRankKeyword, TextRankSentence } from '../dist/index.mjs';
           
@@ -184,46 +184,46 @@ jobs:
           // 显示结果
           function displayResults(results) {
             // 显示统计信息
-            const statsHtml = \`
+            const statsHtml = `
               <div class="stat-item">
-                <span class="stat-number">\${results.stats.textLength}</span>
+                <span class="stat-number">${results.stats.textLength}</span>
                 <div class="stat-label">文本字符数</div>
               </div>
               <div class="stat-item">
-                <span class="stat-number">\${results.stats.keywordsCount}</span>
+                <span class="stat-number">${results.stats.keywordsCount}</span>
                 <div class="stat-label">关键词数量</div>
               </div>
               <div class="stat-item">
-                <span class="stat-number">\${results.stats.keyphrasesCount}</span>
+                <span class="stat-number">${results.stats.keyphrasesCount}</span>
                 <div class="stat-label">关键短语数量</div>
               </div>
               <div class="stat-item">
-                <span class="stat-number">\${results.stats.sentencesCount}</span>
+                <span class="stat-number">${results.stats.sentencesCount}</span>
                 <div class="stat-label">重要句子数量</div>
               </div>
-            \`;
+            `;
             document.getElementById('textStats').innerHTML = statsHtml;
           
             // 显示关键词
             const keywordsHtml = results.keywords
-              .map(k => \`<span class="keyword-item">\${k.word} (\${k.weight.toFixed(3)})</span>\`)
+              .map(k => `<span class="keyword-item">${k.word} (${k.weight.toFixed(3)})</span>`)
               .join('');
             document.getElementById('keywordsList').innerHTML = keywordsHtml;
           
             // 显示关键短语
             const keyphrasesHtml = results.keyphrases
-              .map(p => \`<span class="keyword-item">\${p}</span>\`)
+              .map(p => `<span class="keyword-item">${p}</span>`)
               .join('');
             document.getElementById('keyphrasesList').innerHTML = keyphrasesHtml || '<span class="keyword-item">未找到关键短语</span>';
           
             // 显示重要句子
             const sentencesHtml = results.sentences
-              .map(s => \`
+              .map(s => `
                 <div class="sentence-item">
-                  <div class="sentence-meta">权重: \${s.weight.toFixed(3)} | 位置: \${s.index + 1}</div>
-                  <div>\${s.sentence}</div>
+                  <div class="sentence-meta">权重: ${s.weight.toFixed(3)} | 位置: ${s.index + 1}</div>
+                  <div>${s.sentence}</div>
                 </div>
-              \`)
+              `)
               .join('');
             document.getElementById('sentencesList').innerHTML = sentencesHtml;
           
