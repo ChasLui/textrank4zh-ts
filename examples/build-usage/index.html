@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextRank4ZH-TS 构建集成示例</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .nav-back {
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .nav-back:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .info-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .info-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .info-section p {
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .demo-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .demo-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .demo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .demo-header {
+            display: flex;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .demo-icon {
+            font-size: 2rem;
+            margin-right: 15px;
+        }
+        
+        .demo-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            font-weight: 600;
+        }
+        
+        .demo-description {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+        
+        .code-section {
+            margin-bottom: 20px;
+        }
+        
+        .code-section h4 {
+            color: #495057;
+            margin-bottom: 10px;
+            font-size: 1rem;
+        }
+        
+        .code-block {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            overflow-x: auto;
+            margin-bottom: 15px;
+        }
+        
+        .code-block code {
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            color: #495057;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .demo-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .demo-button.secondary {
+            background: #6c757d;
+        }
+        
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .format-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .format-item {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
+            text-align: center;
+        }
+        
+        .format-item h4 {
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 1rem;
+        }
+        
+        .format-item p {
+            color: #6c757d;
+            font-size: 0.85rem;
+            margin: 0;
+        }
+        
+        .format-item .file-size {
+            color: #28a745;
+            font-weight: 600;
+            margin-top: 5px;
+            font-size: 0.8rem;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .demo-header {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .demo-icon {
+                margin-right: 0;
+                margin-bottom: 10px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <a href="../" class="nav-back">← 返回主页</a>
+            <h1>🔧 构建集成示例</h1>
+            <p>展示 TextRank4ZH-TS 在不同构建系统中的使用方式</p>
+        </div>
+        
+        <div class="info-section">
+            <h2>📦 构建产物说明</h2>
+            <p>TextRank4ZH-TS 使用 unbuild 构建工具，生成多种格式以适应不同的使用场景和部署环境。</p>
+            
+            <div class="format-grid">
+                <div class="format-item">
+                    <h4>📄 index.mjs</h4>
+                    <p>ES Module 格式，适用于现代构建工具</p>
+                    <div class="file-size">~100KB</div>
+                </div>
+                <div class="format-item">
+                    <h4>📄 index.cjs</h4>
+                    <p>CommonJS 格式，适用于 Node.js 环境</p>
+                    <div class="file-size">~105KB</div>
+                </div>
+                <div class="format-item">
+                    <h4>📄 index.iife.js</h4>
+                    <p>IIFE 格式，可直接在浏览器中使用</p>
+                    <div class="file-size">~110KB</div>
+                </div>
+                <div class="format-item">
+                    <h4>📄 index.d.ts</h4>
+                    <p>TypeScript 类型定义文件</p>
+                    <div class="file-size">~15KB</div>
+                </div>
+                <div class="format-item">
+                    <h4>⚡ index.worker.js</h4>
+                    <p>DedicatedWorker 独立文件</p>
+                    <div class="file-size">~60KB</div>
+                </div>
+                <div class="format-item">
+                    <h4>🔗 index.sharedworker.js</h4>
+                    <p>SharedWorker 独立文件</p>
+                    <div class="file-size">~65KB</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-grid">
+            <div class="demo-card">
+                <div class="demo-header">
+                    <span class="demo-icon">🌐</span>
+                    <div class="demo-title">IIFE 全局引入</div>
+                </div>
+                <div class="demo-description">
+                    最简单的浏览器使用方式，直接通过 script 标签引入，无需构建工具。
+                </div>
+                
+                <div class="code-section">
+                    <h4>HTML 引入:</h4>
+                    <div class="code-block">
+                        <code>&lt;script src="./dist/index.iife.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const { TextRankKeyword } = window.TextRank4ZH;
+  const tr4w = new TextRankKeyword();
+  // 使用库...
+&lt;/script&gt;</code>
+                    </div>
+                </div>
+                
+                <div class="demo-buttons">
+                    <a href="./iife-example.html" class="demo-button">查看演示</a>
+                    <a href="https://github.com/ChasLui/textrank4zh-ts/blob/main/examples/build-usage/iife-example.html" class="demo-button secondary">查看源码</a>
+                </div>
+            </div>
+            
+            <div class="demo-card">
+                <div class="demo-header">
+                    <span class="demo-icon">📦</span>
+                    <div class="demo-title">ES Module 导入</div>
+                </div>
+                <div class="demo-description">
+                    现代浏览器和构建工具的标准方式，支持 Tree Shaking 和静态分析。
+                </div>
+                
+                <div class="code-section">
+                    <h4>模块导入:</h4>
+                    <div class="code-block">
+                        <code>import { TextRankKeyword, TextRankSentence } from 'textrank4zh-ts';
+
+// 或从 CDN 导入
+import { TextRankKeyword } from 'https://unpkg.com/textrank4zh-ts@latest/dist/index.mjs';
+
+const tr4w = new TextRankKeyword();
+const result = tr4w.analyze(text);</code>
+                    </div>
+                </div>
+                
+                <div class="code-section">
+                    <h4>构建工具配置 (Vite/Webpack):</h4>
+                    <div class="code-block">
+                        <code>// package.json
+{
+  "dependencies": {
+    "textrank4zh-ts": "^0.1.0"
+  }
+}
+
+// main.js
+import { TextRankKeyword } from 'textrank4zh-ts';</code>
+                    </div>
+                </div>
+                
+                <div class="demo-buttons">
+                    <a href="./esm-example.html" class="demo-button">查看演示</a>
+                    <a href="#" class="demo-button secondary">集成指南</a>
+                </div>
+            </div>
+            
+            <div class="demo-card">
+                <div class="demo-header">
+                    <span class="demo-icon">🟢</span>
+                    <div class="demo-title">Node.js CommonJS</div>
+                </div>
+                <div class="demo-description">
+                    Node.js 环境的标准使用方式，支持 require 语法和 CommonJS 模块系统。
+                </div>
+                
+                <div class="code-section">
+                    <h4>CommonJS 语法:</h4>
+                    <div class="code-block">
+                        <code>const { TextRankKeyword, TextRankSentence } = require('textrank4zh-ts');
+
+const tr4w = new TextRankKeyword();
+const result = tr4w.analyze('中文测试文本');
+
+if (result.ok) {
+  const keywords = tr4w.getKeywords(10);
+  console.log('关键词:', keywords);
+}</code>
+                    </div>
+                </div>
+                
+                <div class="code-section">
+                    <h4>package.json 配置:</h4>
+                    <div class="code-block">
+                        <code>{
+  "name": "my-project",
+  "type": "commonjs",
+  "dependencies": {
+    "textrank4zh-ts": "^0.1.0"
+  }
+}</code>
+                    </div>
+                </div>
+                
+                <div class="demo-buttons">
+                    <a href="#" class="demo-button">Node.js 示例</a>
+                    <a href="https://github.com/ChasLui/textrank4zh-ts#nodejs-使用" class="demo-button secondary">文档说明</a>
+                </div>
+            </div>
+            
+            <div class="demo-card">
+                <div class="demo-header">
+                    <span class="demo-icon">🔗</span>
+                    <div class="demo-title">CDN 直接使用</div>
+                </div>
+                <div class="demo-description">
+                    通过 CDN 直接使用，无需本地安装，适合快速原型开发和简单项目。
+                </div>
+                
+                <div class="code-section">
+                    <h4>unpkg CDN:</h4>
+                    <div class="code-block">
+                        <code>&lt;script type="module"&gt;
+  import { TextRankKeyword } from 'https://unpkg.com/textrank4zh-ts@latest/dist/index.mjs';
+  
+  const tr4w = new TextRankKeyword();
+  // 使用库...
+&lt;/script&gt;</code>
+                    </div>
+                </div>
+                
+                <div class="code-section">
+                    <h4>jsDelivr CDN:</h4>
+                    <div class="code-block">
+                        <code>&lt;script type="module"&gt;
+  import { TextRankKeyword } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.mjs';
+&lt;/script&gt;
+
+&lt;!-- IIFE 版本 --&gt;
+&lt;script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js"&gt;&lt;/script&gt;</code>
+                    </div>
+                </div>
+                
+                <div class="demo-buttons">
+                    <a href="./cdn-example.html" class="demo-button">查看演示</a>
+                    <a href="https://unpkg.com/textrank4zh-ts@latest/" class="demo-button secondary">浏览文件</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h2>🚀 快速集成指南</h2>
+            <p>根据您的项目环境选择合适的集成方式：</p>
+            
+            <div style="margin-top: 20px;">
+                <div style="background: #e3f2fd; padding: 15px; border-radius: 8px; border-left: 4px solid #2196f3; margin-bottom: 15px;">
+                    <h4 style="color: #1976d2; margin-bottom: 8px;">🌐 浏览器项目</h4>
+                    <p style="color: #424242; margin: 0;">使用 ES Module 或 IIFE 格式，支持现代浏览器 (ES2020+)</p>
+                </div>
+                
+                <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; border-left: 4px solid #4caf50; margin-bottom: 15px;">
+                    <h4 style="color: #388e3c; margin-bottom: 8px;">🟢 Node.js 项目</h4>
+                    <p style="color: #424242; margin: 0;">使用 CommonJS 或 ES Module 格式，支持 Node.js 16+</p>
+                </div>
+                
+                <div style="background: #fff3e0; padding: 15px; border-radius: 8px; border-left: 4px solid #ff9800; margin-bottom: 15px;">
+                    <h4 style="color: #f57c00; margin-bottom: 8px;">🔧 构建工具项目</h4>
+                    <p style="color: #424242; margin: 0;">支持 Webpack、Vite、Rollup 等主流构建工具</p>
+                </div>
+                
+                <div style="background: #f3e5f5; padding: 15px; border-radius: 8px; border-left: 4px solid #9c27b0;">
+                    <h4 style="color: #7b1fa2; margin-bottom: 8px;">⚡ Worker 项目</h4>
+                    <p style="color: #424242; margin: 0;">使用独立的 Worker 文件，支持多线程处理</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

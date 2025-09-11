@@ -1,0 +1,582 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+  # 允许手动触发
+  workflow_dispatch:
+
+# 设置权限以部署到 Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 确保只有一个部署任务运行
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  # 构建任务
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build project
+        run: pnpm run build
+      
+      - name: Create pages directory
+        run: mkdir -p _site
+      
+      - name: Copy examples
+        run: cp -r examples/* _site/
+      
+      - name: Copy dist files
+        run: cp -r dist _site/
+      
+      - name: Update examples to use built files
+        run: |
+          # 更新浏览器示例使用实际构建的文件
+          sed -i 's|./demo.js|./demo-live.js|g' _site/browser/index.html
+          
+          # 更新 Worker 示例的路径
+          find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-worker-standalone\.js|../dist/index.worker.js|g' {} \;
+          find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-sharedworker-standalone\.js|../dist/index.sharedworker.js|g' {} \;
+          
+          # 更新构建使用示例
+          find _site/build-usage -name "*.html" -exec sed -i 's|\.\.\/\.\.\/dist\/|../dist/|g' {} \;
+      
+      - name: Create live demo script
+        run: |
+          cat > _site/browser/demo-live.js << 'EOF'
+          // 使用实际构建的 TextRank4ZH-TS 库
+          import { TextRankKeyword, TextRankSentence } from '../dist/index.mjs';
+          
+          // 全局变量
+          let keywordAnalyzer = null;
+          let sentenceAnalyzer = null;
+          
+          // 示例文本
+          const sampleTexts = [
+            `北京是中华人民共和国的首都，是全国政治中心、文化中心。上海是中华人民共和国直辖市，是中国最大的经济中心。深圳是中国改革开放的前沿城市，经济发展迅速。广州是广东省省会，是华南地区的经济中心。杭州是浙江省省会，以风景秀丽著称。`,
+            
+            `人工智能技术在自然语言处理领域取得了重大突破。机器学习和深度学习推动了人工智能的快速发展。神经网络模型能够理解复杂的语言结构和语义信息。文本分析、语音识别、图像处理等应用场景不断涌现。未来人工智能将在更多领域发挥重要作用。`,
+            
+            `中国的教育事业蓬勃发展，各级各类学校办学条件不断改善。高等教育进入普及化发展阶段，教育质量稳步提升。职业教育体系日趋完善，为经济社会发展培养了大批技能人才。基础教育均衡发展，城乡教育差距逐步缩小。`
+          ];
+          
+          // 初始化
+          window.addEventListener('DOMContentLoaded', function() {
+            try {
+              keywordAnalyzer = new TextRankKeyword();
+              sentenceAnalyzer = new TextRankSentence();
+              console.log('TextRank4ZH-TS 已成功加载，使用实际构建版本');
+            } catch (error) {
+              console.error('TextRank4ZH-TS 加载失败:', error);
+              showError('库加载失败，请检查网络连接或刷新页面重试');
+            }
+          });
+          
+          // 加载示例文本
+          window.loadSampleText = function() {
+            const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+            document.getElementById('inputText').value = randomText;
+          };
+          
+          // 清空文本
+          window.clearText = function() {
+            document.getElementById('inputText').value = '';
+            hideResults();
+          };
+          
+          // 分析文本
+          window.analyzeText = async function() {
+            const text = document.getElementById('inputText').value.trim();
+            
+            if (!text) {
+              showError('请输入要分析的文本');
+              return;
+            }
+          
+            if (!keywordAnalyzer || !sentenceAnalyzer) {
+              showError('TextRank4ZH-TS 库尚未加载完成，请稍候重试');
+              return;
+            }
+          
+            showLoading();
+            hideError();
+            hideResults();
+          
+            try {
+              // 获取配置
+              const keywordNum = parseInt(document.getElementById('keywordNum').value);
+              const sentenceNum = parseInt(document.getElementById('sentenceNum').value);
+              const windowSize = parseInt(document.getElementById('windowSize').value);
+              const minWordLen = parseInt(document.getElementById('minWordLen').value);
+          
+              // 关键词分析
+              const keywordResult = keywordAnalyzer.analyze(text, {
+                window: windowSize,
+                lower: true,
+                vertexSource: 'all_filters',
+                edgeSource: 'no_stop_words'
+              });
+              
+              if (!keywordResult.ok) {
+                throw new Error('关键词分析失败: ' + keywordResult.error.message);
+              }
+              
+              const keywords = keywordAnalyzer.getKeywords(keywordNum, minWordLen);
+              const keyphrases = keywordAnalyzer.getKeyphrases(keywordNum * 2, 2);
+          
+              // 句子分析
+              sentenceAnalyzer.analyze(text, {
+                lower: true,
+                source: 'no_stop_words'
+              });
+              
+              const keySentences = sentenceAnalyzer.getKeySentences(sentenceNum);
+              const summary = sentenceAnalyzer.getSummary(sentenceNum, 10, true);
+          
+              // 显示结果
+              displayResults({
+                text,
+                keywords,
+                keyphrases,
+                sentences: keySentences,
+                summary,
+                stats: {
+                  textLength: text.length,
+                  keywordsCount: keywords.length,
+                  keyphrasesCount: keyphrases.length,
+                  sentencesCount: keySentences.length
+                }
+              });
+          
+              hideLoading();
+              showResults();
+          
+            } catch (error) {
+              console.error('分析过程中出现错误:', error);
+              showError('分析过程中出现错误: ' + error.message);
+              hideLoading();
+            }
+          };
+          
+          // 显示结果
+          function displayResults(results) {
+            // 显示统计信息
+            const statsHtml = \`
+              <div class="stat-item">
+                <span class="stat-number">\${results.stats.textLength}</span>
+                <div class="stat-label">文本字符数</div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-number">\${results.stats.keywordsCount}</span>
+                <div class="stat-label">关键词数量</div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-number">\${results.stats.keyphrasesCount}</span>
+                <div class="stat-label">关键短语数量</div>
+              </div>
+              <div class="stat-item">
+                <span class="stat-number">\${results.stats.sentencesCount}</span>
+                <div class="stat-label">重要句子数量</div>
+              </div>
+            \`;
+            document.getElementById('textStats').innerHTML = statsHtml;
+          
+            // 显示关键词
+            const keywordsHtml = results.keywords
+              .map(k => \`<span class="keyword-item">\${k.word} (\${k.weight.toFixed(3)})</span>\`)
+              .join('');
+            document.getElementById('keywordsList').innerHTML = keywordsHtml;
+          
+            // 显示关键短语
+            const keyphrasesHtml = results.keyphrases
+              .map(p => \`<span class="keyword-item">\${p}</span>\`)
+              .join('');
+            document.getElementById('keyphrasesList').innerHTML = keyphrasesHtml || '<span class="keyword-item">未找到关键短语</span>';
+          
+            // 显示重要句子
+            const sentencesHtml = results.sentences
+              .map(s => \`
+                <div class="sentence-item">
+                  <div class="sentence-meta">权重: \${s.weight.toFixed(3)} | 位置: \${s.index + 1}</div>
+                  <div>\${s.sentence}</div>
+                </div>
+              \`)
+              .join('');
+            document.getElementById('sentencesList').innerHTML = sentencesHtml;
+          
+            // 显示摘要
+            document.getElementById('summaryText').textContent = results.summary || '无法生成摘要';
+          }
+          
+          // 显示/隐藏相关函数
+          function showLoading() {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('analyzeBtn').disabled = true;
+          }
+          
+          function hideLoading() {
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('analyzeBtn').disabled = false;
+          }
+          
+          function showResults() {
+            document.getElementById('results').style.display = 'block';
+          }
+          
+          function hideResults() {
+            document.getElementById('results').style.display = 'none';
+          }
+          
+          function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+          }
+          
+          function hideError() {
+            document.getElementById('error').style.display = 'none';
+          }
+          EOF
+      
+      - name: Create main index page
+        run: |
+          cat > _site/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="zh-CN">
+          <head>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <title>TextRank4ZH-TS 在线演示</title>
+              <style>
+                  * {
+                      margin: 0;
+                      padding: 0;
+                      box-sizing: border-box;
+                  }
+                  
+                  body {
+                      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+                      line-height: 1.6;
+                      color: #333;
+                      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                      min-height: 100vh;
+                      padding: 20px;
+                  }
+                  
+                  .container {
+                      max-width: 1200px;
+                      margin: 0 auto;
+                  }
+                  
+                  .header {
+                      text-align: center;
+                      margin-bottom: 40px;
+                      color: white;
+                  }
+                  
+                  .header h1 {
+                      font-size: 3rem;
+                      margin-bottom: 10px;
+                      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+                  }
+                  
+                  .header p {
+                      font-size: 1.2rem;
+                      opacity: 0.9;
+                      margin-bottom: 20px;
+                  }
+                  
+                  .badges {
+                      display: flex;
+                      justify-content: center;
+                      gap: 10px;
+                      flex-wrap: wrap;
+                      margin-bottom: 20px;
+                  }
+                  
+                  .badge {
+                      background: rgba(255,255,255,0.2);
+                      color: white;
+                      padding: 5px 15px;
+                      border-radius: 20px;
+                      font-size: 0.9rem;
+                      backdrop-filter: blur(10px);
+                  }
+                  
+                  .demo-grid {
+                      display: grid;
+                      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+                      gap: 30px;
+                      margin-bottom: 40px;
+                  }
+                  
+                  .demo-card {
+                      background: white;
+                      border-radius: 15px;
+                      padding: 30px;
+                      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                      transition: transform 0.3s ease, box-shadow 0.3s ease;
+                  }
+                  
+                  .demo-card:hover {
+                      transform: translateY(-5px);
+                      box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+                  }
+                  
+                  .demo-icon {
+                      font-size: 3rem;
+                      margin-bottom: 20px;
+                      display: block;
+                  }
+                  
+                  .demo-title {
+                      font-size: 1.5rem;
+                      color: #2c3e50;
+                      margin-bottom: 15px;
+                      font-weight: 600;
+                  }
+                  
+                  .demo-description {
+                      color: #7f8c8d;
+                      margin-bottom: 25px;
+                      line-height: 1.6;
+                  }
+                  
+                  .demo-features {
+                      list-style: none;
+                      margin-bottom: 25px;
+                  }
+                  
+                  .demo-features li {
+                      padding: 5px 0;
+                      color: #34495e;
+                  }
+                  
+                  .demo-features li:before {
+                      content: "✅ ";
+                      margin-right: 8px;
+                  }
+                  
+                  .demo-button {
+                      display: inline-block;
+                      background: linear-gradient(45deg, #667eea, #764ba2);
+                      color: white;
+                      text-decoration: none;
+                      padding: 12px 24px;
+                      border-radius: 8px;
+                      font-weight: 500;
+                      transition: all 0.3s ease;
+                      border: none;
+                      cursor: pointer;
+                  }
+                  
+                  .demo-button:hover {
+                      transform: translateY(-2px);
+                      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+                  }
+                  
+                  .info-section {
+                      background: white;
+                      border-radius: 15px;
+                      padding: 40px;
+                      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+                      text-align: center;
+                  }
+                  
+                  .info-section h2 {
+                      color: #2c3e50;
+                      margin-bottom: 20px;
+                      font-size: 2rem;
+                  }
+                  
+                  .info-section p {
+                      color: #7f8c8d;
+                      margin-bottom: 15px;
+                      font-size: 1.1rem;
+                      max-width: 600px;
+                      margin-left: auto;
+                      margin-right: auto;
+                  }
+                  
+                  .tech-stack {
+                      display: flex;
+                      justify-content: center;
+                      gap: 20px;
+                      flex-wrap: wrap;
+                      margin-top: 30px;
+                  }
+                  
+                  .tech-item {
+                      background: #f8f9fa;
+                      padding: 10px 20px;
+                      border-radius: 25px;
+                      color: #495057;
+                      font-weight: 500;
+                      border: 2px solid #e9ecef;
+                  }
+                  
+                  .footer {
+                      text-align: center;
+                      margin-top: 40px;
+                      color: white;
+                      opacity: 0.8;
+                  }
+                  
+                  .footer a {
+                      color: white;
+                      text-decoration: none;
+                      border-bottom: 1px solid rgba(255,255,255,0.3);
+                  }
+                  
+                  .footer a:hover {
+                      border-bottom-color: white;
+                  }
+                  
+                  @media (max-width: 768px) {
+                      .header h1 {
+                          font-size: 2rem;
+                      }
+                      
+                      .demo-grid {
+                          grid-template-columns: 1fr;
+                      }
+                      
+                      .tech-stack {
+                          flex-direction: column;
+                          align-items: center;
+                      }
+                  }
+              </style>
+          </head>
+          <body>
+              <div class="container">
+                  <div class="header">
+                      <h1>🚀 TextRank4ZH-TS</h1>
+                      <p>基于 TextRank 算法的中文文本关键词提取和摘要生成库</p>
+                      <div class="badges">
+                          <span class="badge">🌐 浏览器兼容</span>
+                          <span class="badge">⚡ 高性能</span>
+                          <span class="badge">🎛️ 多线程支持</span>
+                          <span class="badge">📦 零依赖</span>
+                      </div>
+                  </div>
+                  
+                  <div class="demo-grid">
+                      <div class="demo-card">
+                          <span class="demo-icon">🌐</span>
+                          <div class="demo-title">浏览器基础演示</div>
+                          <div class="demo-description">
+                              在浏览器中直接使用 TextRank4ZH-TS 进行关键词提取和文本摘要，展示核心功能。
+                          </div>
+                          <ul class="demo-features">
+                              <li>关键词提取</li>
+                              <li>关键短语生成</li>
+                              <li>文本摘要</li>
+                              <li>实时配置调整</li>
+                          </ul>
+                          <a href="./browser/" class="demo-button">立即体验</a>
+                      </div>
+                      
+                      <div class="demo-card">
+                          <span class="demo-icon">⚡</span>
+                          <div class="demo-title">Web Worker 演示</div>
+                          <div class="demo-description">
+                              使用 Web Worker 进行后台处理，避免阻塞主线程，展示多线程优化能力。
+                          </div>
+                          <ul class="demo-features">
+                              <li>多线程处理</li>
+                              <li>智能降级机制</li>
+                              <li>并发任务管理</li>
+                              <li>性能监控</li>
+                          </ul>
+                          <a href="./worker/" class="demo-button">查看演示</a>
+                      </div>
+                      
+                      <div class="demo-card">
+                          <span class="demo-icon">🔧</span>
+                          <div class="demo-title">构建集成示例</div>
+                          <div class="demo-description">
+                              展示如何在不同的构建系统中集成 TextRank4ZH-TS，包括各种模块格式。
+                          </div>
+                          <ul class="demo-features">
+                              <li>IIFE 全局引入</li>
+                              <li>ES Module 导入</li>
+                              <li>CommonJS 支持</li>
+                              <li>CDN 直接使用</li>
+                          </ul>
+                          <a href="./build-usage/" class="demo-button">查看示例</a>
+                      </div>
+                  </div>
+                  
+                  <div class="info-section">
+                      <h2>🛠️ 技术特性</h2>
+                      <p>TextRank4ZH-TS 是用 TypeScript 重写的 TextRank 算法实现，专门针对中文文本优化，提供完整的浏览器支持和现代化的开发体验。</p>
+                      <p>支持函数式错误处理、主线程调度、多种运行模式，确保在各种环境下都能稳定高效运行。</p>
+                      
+                      <div class="tech-stack">
+                          <span class="tech-item">TypeScript</span>
+                          <span class="tech-item">Web Workers</span>
+                          <span class="tech-item">ES2020+</span>
+                          <span class="tech-item">零外部依赖</span>
+                          <span class="tech-item">函数式编程</span>
+                          <span class="tech-item">PageRank 算法</span>
+                      </div>
+                  </div>
+                  
+                  <div class="footer">
+                      <p>
+                          📚 <a href="https://github.com/ChasLui/textrank4zh-ts">GitHub 仓库</a> |
+                          📖 <a href="https://github.com/ChasLui/textrank4zh-ts#readme">API 文档</a> |
+                          📦 <a href="https://www.npmjs.com/package/textrank4zh-ts">npm 包</a>
+                      </p>
+                      <p style="margin-top: 20px; font-size: 0.9rem;">
+                          MIT License • 由 <a href="https://github.com/ChasLui">ChasLui</a> 开发维护
+                      </p>
+                  </div>
+              </div>
+          </body>
+          </html>
+          EOF
+      
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+      
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: '_site'
+
+  # 部署任务
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    needs: build
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

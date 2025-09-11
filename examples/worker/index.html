@@ -5,1025 +5,364 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TextRank4ZH-TS Web Worker 演示</title>
     <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
             line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
         }
         
         .container {
+            max-width: 1000px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .nav-back {
+            display: inline-block;
+            color: white;
+            text-decoration: none;
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(10px);
+            transition: all 0.3s ease;
+        }
+        
+        .nav-back:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+        }
+        
+        .demo-grid {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 40px;
+        }
+        
+        .demo-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .demo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .demo-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+            display: block;
+        }
+        
+        .demo-title {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .demo-description {
+            color: #7f8c8d;
+            margin-bottom: 20px;
+            line-height: 1.5;
+            font-size: 0.95rem;
+        }
+        
+        .demo-features {
+            list-style: none;
+            margin-bottom: 20px;
+        }
+        
+        .demo-features li {
+            padding: 3px 0;
+            color: #34495e;
+            font-size: 0.9rem;
+        }
+        
+        .demo-features li:before {
+            content: "⚡ ";
+            margin-right: 5px;
+        }
+        
+        .demo-buttons {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        
+        .demo-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-weight: 500;
+            font-size: 0.9rem;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .demo-button.secondary {
+            background: #6c757d;
+        }
+        
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .info-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            margin-bottom: 30px;
+        }
+        
+        .info-section h2 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.5rem;
+        }
+        
+        .info-section p {
+            color: #7f8c8d;
+            margin-bottom: 10px;
+            line-height: 1.6;
+        }
+        
+        .architecture-info {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+            border-left: 4px solid #007bff;
+        }
+        
+        .architecture-info h3 {
+            color: #495057;
+            margin-bottom: 10px;
+        }
+        
+        .architecture-info ol {
+            color: #6c757d;
+            margin-left: 20px;
+        }
+        
+        .architecture-info li {
+            margin-bottom: 5px;
+        }
+        
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
             margin-top: 20px;
         }
         
-        .section {
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            padding: 20px;
-            background: #f9f9f9;
-        }
-        
-        .section h3 {
-            margin-top: 0;
-            color: #333;
-            border-bottom: 2px solid #007acc;
-            padding-bottom: 8px;
-        }
-        
-        textarea {
-            width: 100%;
-            min-height: 120px;
-            padding: 12px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            font-size: 14px;
-            font-family: inherit;
-            resize: vertical;
-        }
-        
-        button {
-            background: #007acc;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 16px;
-            margin: 10px 5px 10px 0;
-        }
-        
-        button:hover {
-            background: #005a8c;
-        }
-        
-        button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-        
-        .results {
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+        .feature-item {
+            background: #f8f9fa;
             padding: 15px;
-            margin-top: 15px;
-            max-height: 300px;
-            overflow-y: auto;
+            border-radius: 8px;
+            border: 1px solid #e9ecef;
         }
         
-        .keyword {
-            display: inline-block;
-            background: #e3f2fd;
-            color: #1976d2;
-            padding: 4px 8px;
-            margin: 2px;
-            border-radius: 12px;
-            font-size: 12px;
+        .feature-item h4 {
+            color: #495057;
+            margin-bottom: 8px;
+            font-size: 1rem;
         }
         
-        .sentence {
-            margin: 8px 0;
-            padding: 8px;
-            background: #f5f5f5;
-            border-left: 3px solid #007acc;
+        .feature-item p {
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin: 0;
         }
         
-        .summary {
-            background: #e8f5e8;
-            border: 1px solid #4caf50;
-            border-radius: 4px;
-            padding: 12px;
-            margin-top: 10px;
-        }
-        
-        .status {
-            font-size: 12px;
-            color: #666;
-            margin-top: 10px;
-        }
-        
-        .performance {
-            background: #fff3e0;
-            border: 1px solid #ff9800;
-            border-radius: 4px;
-            padding: 10px;
-            margin-top: 10px;
-            font-size: 12px;
-        }
-        
-        .error {
-            background: #ffebee;
-            color: #c62828;
-            border: 1px solid #f44336;
-            border-radius: 4px;
-            padding: 10px;
-            margin-top: 10px;
-        }
-        
-        .loading {
-            display: inline-block;
-            animation: spin 1s linear infinite;
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        .config {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin: 10px 0;
-        }
-        
-        .config label {
-            font-size: 12px;
-            color: #555;
-        }
-        
-        .config input {
-            padding: 4px 8px;
-            border: 1px solid #ccc;
-            border-radius: 3px;
-            font-size: 12px;
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
         }
     </style>
 </head>
 <body>
-    <header>
-        <h1>🧠 TextRank4ZH-TS Web Worker 演示</h1>
-        <p>使用 Web Worker 在后台线程进行文本分析，避免阻塞主线程UI</p>
-    </header>
-
     <div class="container">
-        <!-- 关键词提取 -->
-        <div class="section">
-            <h3>📝 关键词提取</h3>
-            <textarea id="keywordInput" placeholder="请输入要分析的中文文本...">
-人工智能技术正在快速发展，深度学习和机器学习成为当今科技领域的热门话题。自然语言处理技术在文本分析、语音识别、机器翻译等方面取得了重大突破。计算机视觉技术在图像识别、目标检测、人脸识别等领域也有广泛应用。随着算力的提升和算法的优化，人工智能将在更多领域发挥重要作用，推动社会的数字化转型。
-            </textarea>
-            
-            <div class="config">
-                <label>关键词数量: <input type="number" id="keywordNum" value="10" min="1" max="20"></label>
-                <label>最小词长: <input type="number" id="keywordMinLen" value="1" min="1" max="5"></label>
-                <label>短语数量: <input type="number" id="keyphraseNum" value="8" min="1" max="15"></label>
-                <label>窗口大小: <input type="number" id="window" value="2" min="1" max="10"></label>
-            </div>
-            
-            <button id="analyzeKeywords">🔍 分析关键词</button>
-            <button id="analyzeKeywordsParallel">⚡ 并行分析（3个任务）</button>
-            
-            <div id="keywordResults" class="results" style="display: none;">
-                <h4>关键词:</h4>
-                <div id="keywordList"></div>
-                
-                <h4>关键短语:</h4>
-                <div id="keyphraseList"></div>
-            </div>
-            
-            <div id="keywordStatus" class="status"></div>
-            <div id="keywordPerformance" class="performance" style="display: none;"></div>
-            <div id="keywordError" class="error" style="display: none;"></div>
+        <div class="header">
+            <a href="../" class="nav-back">← 返回主页</a>
+            <h1>⚡ Web Worker 演示</h1>
+            <p>探索 TextRank4ZH-TS 的多线程处理能力</p>
         </div>
-
-        <!-- 文本摘要 -->
-        <div class="section">
-            <h3>📄 文本摘要</h3>
-            <textarea id="summaryInput" placeholder="请输入要生成摘要的中文文本...">
-北京是中华人民共和国的首都，是全国政治中心、文化中心、国际交往中心、科技创新中心。北京位于华北平原北部，背靠燕山，毗邻天津市和河北省。北京的气候为典型的北温带半湿润大陆性季风气候，夏季高温多雨，冬季寒冷干燥。
-
-上海是中华人民共和国省级行政区、直辖市、国家中心城市、超大城市，中国国际经济、金融、贸易、航运、科技创新中心。上海位于中国华东地区，界于东经120°52′-122°12′，北纬30°40′-31°53′之间，地处长江入海口，东隔东中国海与日本九州岛相望，南濒杭州湾，北、西与江苏、浙江两省相接。
-
-深圳，简称"深"，别称鹏城，是广东省副省级市、计划单列市、超大城市，国务院批复确定的中国经济特区、全国性经济中心城市和国际化城市。深圳地处中国华南地区、广东南部、珠江口东岸，东临大亚湾和大鹏湾，西濒珠江口和伶仃洋，南隔深圳河与香港相连，北部与东莞、惠州接壤。
-            </textarea>
+        
+        <div class="info-section">
+            <h2>🎯 Worker 架构设计</h2>
+            <p>TextRank4ZH-TS 采用三级智能降级架构，确保在任何环境下都能高效运行：</p>
             
-            <div class="config">
-                <label>摘要句数: <input type="number" id="summaryNum" value="3" min="1" max="10"></label>
-                <label>最小句长: <input type="number" id="summaryMinLen" value="6" min="1" max="20"></label>
-                <label>重要句数: <input type="number" id="sentenceNum" value="5" min="1" max="10"></label>
-                <label><input type="checkbox" id="sortByIndex" checked> 按原文顺序</label>
+            <div class="architecture-info">
+                <h3>🔄 三级降级策略</h3>
+                <ol>
+                    <li><strong>SharedWorker</strong> (首选) - 多标签页共享，最佳性能和资源利用</li>
+                    <li><strong>DedicatedWorker</strong> (降级) - 单标签页专用，良好性能</li>
+                    <li><strong>SyncMode</strong> (兜底) - 主线程调度，60fps保护，确保兼容性</li>
+                </ol>
             </div>
             
-            <button id="analyzeSummary">📝 生成摘要</button>
-            <button id="analyzeBoth">🔄 完整分析</button>
-            
-            <div id="summaryResults" class="results" style="display: none;">
-                <h4>重要句子:</h4>
-                <div id="sentenceList"></div>
-                
-                <div id="summaryText" class="summary" style="display: none;">
-                    <h4>摘要:</h4>
-                    <div id="summaryContent"></div>
+            <div class="feature-grid">
+                <div class="feature-item">
+                    <h4>🚀 性能优化</h4>
+                    <p>Transferable 对象优化，50-90% 性能提升，零拷贝数据传输</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🎛️ 智能调度</h4>
+                    <p>主线程调度器，时间片管理，60fps 流畅度保证</p>
+                </div>
+                <div class="feature-item">
+                    <h4>🔧 自动降级</h4>
+                    <p>检测浏览器能力，自动选择最佳执行模式</p>
+                </div>
+                <div class="feature-item">
+                    <h4>📊 任务管理</h4>
+                    <p>并发控制，任务队列，超时处理，状态监控</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="demo-grid">
+            <div class="demo-card">
+                <span class="demo-icon">🌐</span>
+                <div class="demo-title">通用 Worker 客户端</div>
+                <div class="demo-description">
+                    使用 TextRankUniversalClient 的智能 Worker 系统，自动检测并选择最佳的执行模式。
+                </div>
+                <ul class="demo-features">
+                    <li>智能模式选择</li>
+                    <li>自动降级处理</li>
+                    <li>并发任务管理</li>
+                    <li>性能监控</li>
+                </ul>
+                <div class="demo-buttons">
+                    <a href="./universal-demo.html" class="demo-button">立即体验</a>
+                    <a href="https://github.com/ChasLui/textrank4zh-ts/blob/main/examples/worker/universal-demo.html" class="demo-button secondary">查看源码</a>
                 </div>
             </div>
             
-            <div id="summaryStatus" class="status"></div>
-            <div id="summaryPerformance" class="performance" style="display: none;"></div>
-            <div id="summaryError" class="error" style="display: none;"></div>
+            <div class="demo-card">
+                <span class="demo-icon">🔧</span>
+                <div class="demo-title">专用 Worker 演示</div>
+                <div class="demo-description">
+                    直接使用 DedicatedWorker 进行文本分析，展示单线程 Worker 的使用方式。
+                </div>
+                <ul class="demo-features">
+                    <li>专用 Worker 线程</li>
+                    <li>独立的运行环境</li>
+                    <li>简单的 API 调用</li>
+                    <li>错误处理机制</li>
+                </ul>
+                <div class="demo-buttons">
+                    <a href="./dedicated-worker-demo.html" class="demo-button">查看演示</a>
+                    <a href="https://github.com/ChasLui/textrank4zh-ts/blob/main/examples/worker/textrank-worker-standalone.js" class="demo-button secondary">Worker 源码</a>
+                </div>
+            </div>
+            
+            <div class="demo-card">
+                <span class="demo-icon">🔗</span>
+                <div class="demo-title">共享 Worker 演示</div>
+                <div class="demo-description">
+                    使用 SharedWorker 实现多标签页共享，展示高级多线程处理能力。
+                </div>
+                <ul class="demo-features">
+                    <li>多标签页共享</li>
+                    <li>连接状态管理</li>
+                    <li>资源复用优化</li>
+                    <li>状态同步机制</li>
+                </ul>
+                <div class="demo-buttons">
+                    <a href="./shared-worker-demo.html" class="demo-button">查看演示</a>
+                    <a href="https://github.com/ChasLui/textrank4zh-ts/blob/main/examples/worker/textrank-sharedworker-standalone.js" class="demo-button secondary">Worker 源码</a>
+                </div>
+            </div>
+            
+            <div class="demo-card">
+                <span class="demo-icon">📊</span>
+                <div class="demo-title">性能对比测试</div>
+                <div class="demo-description">
+                    对比不同执行模式的性能表现，直观展示 Worker 优化效果。
+                </div>
+                <ul class="demo-features">
+                    <li>性能基准测试</li>
+                    <li>模式对比分析</li>
+                    <li>执行时间统计</li>
+                    <li>内存使用监控</li>
+                </ul>
+                <div class="demo-buttons">
+                    <a href="./performance-demo.html" class="demo-button">性能测试</a>
+                    <a href="../README.md#性能优化" class="demo-button secondary">技术文档</a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h2>🚀 快速开始</h2>
+            <p>在您的项目中使用 TextRank4ZH-TS Worker 系统：</p>
+            
+            <pre style="background: #f8f9fa; padding: 20px; border-radius: 8px; overflow-x: auto; margin-top: 15px; color: #495057;"><code>import { TextRankUniversalClient } from 'textrank4zh-ts';
+
+// 创建智能客户端
+const client = new TextRankUniversalClient('./worker.js', {
+  preferredWorkerType: 'auto',  // 自动选择最佳模式
+  fallbackToSync: true,         // 允许降级到同步模式
+  maxConcurrent: 10             // 最大并发任务数
+});
+
+// 智能关键词分析
+const result = await client.analyzeKeywords(text, {
+  window: 2,
+  lower: true
+}, {
+  keywords: { num: 10 }
+});
+
+console.log('分析结果:', result.data);
+console.log('执行模式:', client.getStatus().type);</code></pre>
         </div>
     </div>
-
-    <!-- Worker 状态监控 -->
-    <div class="section" style="margin-top: 30px;">
-        <h3>⚙️ Worker 状态监控</h3>
-        <div id="workerStatus">
-            <p>待处理任务: <span id="pendingTasks">0</span></p>
-            <p>最大并发: <span id="maxConcurrent">10</span></p>
-            <p>Worker状态: <span id="workerReady">初始化中...</span></p>
-        </div>
-        <button id="terminateWorker">🔴 终止 Worker</button>
-        <button id="reinitWorker">🔄 重新初始化</button>
-    </div>
-
-    <script type="module">
-        // 数据传输工具类 - Transferable 优化版本
-        class WorkerDataTransfer {
-            constructor() {
-                // 检测环境支持
-                this.isTransferableSupported = this.detectTransferableSupport();
-                this.isWorkerSupported = this.detectWorkerSupport();
-                this.isTextEncoderSupported = this.detectTextEncoderSupport();
-                
-                console.log('数据传输工具兼容性状态:', {
-                    transferable: this.isTransferableSupported ? '✅ 支持' : '❌ 不支持',
-                    worker: this.isWorkerSupported ? '✅ 支持' : '❌ 不支持',
-                    textEncoder: this.isTextEncoderSupported ? '✅ 支持' : '❌ 不支持'
-                });
-            }
-
-            // 检测 Transferable 支持
-            detectTransferableSupport() {
-                try {
-                    return typeof ArrayBuffer !== 'undefined' && 
-                           typeof window !== 'undefined' && 
-                           typeof window.postMessage === 'function';
-                } catch (error) {
-                    return false;
-                }
-            }
-
-            // 检测 Web Worker 支持
-            detectWorkerSupport() {
-                try {
-                    return typeof Worker !== 'undefined';
-                } catch (error) {
-                    return false;
-                }
-            }
-
-            // 检测 TextEncoder 支持
-            detectTextEncoderSupport() {
-                try {
-                    return typeof TextEncoder !== 'undefined' && typeof TextDecoder !== 'undefined';
-                } catch (error) {
-                    return false;
-                }
-            }
-
-            // 获取环境支持状态
-            getSupportStatus() {
-                return {
-                    transferable: this.isTransferableSupported,
-                    worker: this.isWorkerSupported,
-                    textEncoder: this.isTextEncoderSupported
-                };
-            }
-
-            // 将文本转换为 ArrayBuffer（兼容版本）
-            textToArrayBuffer(text) {
-                if (this.isTextEncoderSupported) {
-                    const encoder = new TextEncoder();
-                    return encoder.encode(text).buffer;
-                } else {
-                    // 降级：使用手动编码
-                    return this.manualTextToArrayBuffer(text);
-                }
-            }
-
-            // 将 ArrayBuffer 转换为文本（兼容版本）
-            arrayBufferToText(buffer) {
-                if (this.isTextEncoderSupported) {
-                    const decoder = new TextDecoder();
-                    return decoder.decode(buffer);
-                } else {
-                    // 降级：使用手动解码
-                    return this.manualArrayBufferToText(buffer);
-                }
-            }
-
-            // 手动文本编码（降级方法）
-            manualTextToArrayBuffer(text) {
-                const utf8 = [];
-                for (let i = 0; i < text.length; i++) {
-                    let charcode = text.charCodeAt(i);
-                    if (charcode < 0x80) utf8.push(charcode);
-                    else if (charcode < 0x800) {
-                        utf8.push(0xc0 | (charcode >> 6), 0x80 | (charcode & 0x3f));
-                    } else if ((charcode & 0xfc00) == 0xd800 && i + 1 < text.length && 
-                               (text.charCodeAt(i + 1) & 0xfc00) == 0xdc00) {
-                        charcode = 0x10000 + (((charcode & 0x03ff) << 10) + (text.charCodeAt(++i) & 0x03ff));
-                        utf8.push(0xf0 | (charcode >> 18), 0x80 | ((charcode >> 12) & 0x3f), 
-                                  0x80 | ((charcode >> 6) & 0x3f), 0x80 | (charcode & 0x3f));
-                    } else {
-                        utf8.push(0xe0 | (charcode >> 12), 0x80 | ((charcode >> 6) & 0x3f), 
-                                  0x80 | (charcode & 0x3f));
-                    }
-                }
-                return new Uint8Array(utf8).buffer;
-            }
-
-            // 手动文本解码（降级方法）
-            manualArrayBufferToText(buffer) {
-                const bytes = new Uint8Array(buffer);
-                const length = bytes.length;
-                let result = '';
-                let i = 0;
-
-                while (i < length) {
-                    const byte1 = bytes[i++];
-                    if (byte1 < 0x80) {
-                        result += String.fromCharCode(byte1);
-                    } else if ((byte1 >> 5) === 0x06) {
-                        const byte2 = bytes[i++];
-                        result += String.fromCharCode(((byte1 & 0x1f) << 6) | (byte2 & 0x3f));
-                    } else if ((byte1 >> 4) === 0x0e) {
-                        const byte2 = bytes[i++];
-                        const byte3 = bytes[i++];
-                        result += String.fromCharCode(((byte1 & 0x0f) << 12) | ((byte2 & 0x3f) << 6) | (byte3 & 0x3f));
-                    } else if ((byte1 >> 3) === 0x1e) {
-                        const byte2 = bytes[i++];
-                        const byte3 = bytes[i++];
-                        const byte4 = bytes[i++];
-                        const codepoint = ((byte1 & 0x07) << 18) | ((byte2 & 0x3f) << 12) | ((byte3 & 0x3f) << 6) | (byte4 & 0x3f);
-                        result += String.fromCharCode(0xd800 + ((codepoint - 0x10000) >> 10), 0xdc00 + ((codepoint - 0x10000) & 0x3ff));
-                    }
-                }
-                return result;
-            }
-
-            // 序列化对象为 ArrayBuffer
-            serializeToArrayBuffer(obj) {
-                const jsonString = JSON.stringify(obj);
-                return this.textToArrayBuffer(jsonString);
-            }
-
-            // 反序列化 ArrayBuffer 为对象
-            deserializeFromArrayBuffer(buffer) {
-                const jsonString = this.arrayBufferToText(buffer);
-                return JSON.parse(jsonString);
-            }
-
-            // 批量序列化数据
-            batchSerialize(data) {
-                const serializedData = {};
-                const transferables = [];
-
-                for (const [key, value] of Object.entries(data)) {
-                    if (value !== undefined && value !== null) {
-                        const buffer = this.serializeToArrayBuffer(value);
-                        serializedData[key] = buffer;
-                        transferables.push(buffer);
-                    }
-                }
-
-                return { serializedData, transferables };
-            }
-
-            // 批量反序列化数据
-            batchDeserialize(serializedData) {
-                const result = {};
-
-                for (const [key, buffer] of Object.entries(serializedData)) {
-                    result[key] = this.deserializeFromArrayBuffer(buffer);
-                }
-
-                return result;
-            }
-
-            // 判断是否应该使用 Transferable（兼容性检测）
-            shouldUseTransferable(data, threshold = 1024) {
-                if (!this.isTransferableSupported) {
-                    return false;
-                }
-
-                try {
-                    const serialized = JSON.stringify(data);
-                    return serialized.length > threshold;
-                } catch (error) {
-                    return false;
-                }
-            }
-
-            // 智能准备数据传输（带错误处理）
-            prepareDataForTransfer(data) {
-                try {
-                    const useTransferable = this.shouldUseTransferable(data);
-
-                    if (useTransferable) {
-                        const { serializedData, transferables } = this.batchSerialize(data);
-                        return {
-                            transferData: { __transferable: true, data: serializedData },
-                            transferables,
-                            useTransferable: true
-                        };
-                    }
-
-                    return {
-                        transferData: data,
-                        useTransferable: false
-                    };
-                } catch (error) {
-                    console.warn('Transferable 准备失败，使用传统方式:', error);
-                    return {
-                        transferData: data,
-                        useTransferable: false
-                    };
-                }
-            }
-
-            // 处理接收到的数据（带错误处理）
-            processReceivedData(data) {
-                try {
-                    if (data && data.__transferable === true) {
-                        if (!this.isTransferableSupported) {
-                            console.warn('收到 Transferable 数据但环境不支持');
-                            return this.batchDeserialize(data.data);
-                        }
-                        
-                        return this.batchDeserialize(data.data);
-                    }
-                    return data;
-                } catch (error) {
-                    console.warn('数据处理失败，返回原始数据:', error);
-                    
-                    if (data && data.data) {
-                        return data.data;
-                    }
-                    
-                    return data;
-                }
-            }
-        }
-
-        const dataTransfer = new WorkerDataTransfer();
-
-        // 内联简化的 Worker 客户端 - 支持 Transferable 和兼容性检测
-        class TextRankWorkerClient {
-            constructor(workerUrl, options = {}) {
-                this.worker = null;
-                this.pendingTasks = new Map();
-                this.taskCounter = 0;
-                this.workerUrl = workerUrl;
-                this.options = {
-                    timeout: 30000,
-                    maxConcurrent: 10,
-                    ...options
-                };
-
-                // 检测环境支持
-                this.isWorkerSupported = this.detectWorkerSupport();
-                this.supportStatus = dataTransfer.getSupportStatus();
-                
-                this.logCompatibilityStatus();
-            }
-
-            // 检测 Web Worker 支持
-            detectWorkerSupport() {
-                try {
-                    return typeof Worker !== 'undefined';
-                } catch (error) {
-                    return false;
-                }
-            }
-
-            // 记录兼容性状态
-            logCompatibilityStatus() {
-                console.log('TextRank Worker 客户端兼容性状态:', {
-                    worker: this.isWorkerSupported ? '✅ 支持' : '❌ 不支持',
-                    transferable: this.supportStatus.transferable ? '✅ 支持' : '❌ 不支持',
-                    fallback: !this.isWorkerSupported ? '⚠️ 将使用同步降级模式' : ''
-                });
-            }
-
-            async initWorker() {
-                if (this.worker) return;
-                
-                if (!this.isWorkerSupported) {
-                    throw new Error('Web Worker 不支持，请使用支持 Web Workers 的现代浏览器');
-                }
-
-                return new Promise((resolve, reject) => {
-                    try {
-                        this.worker = new Worker(this.workerUrl);
-                        
-                        this.worker.onmessage = (event) => {
-                            this.handleWorkerMessage(event.data);
-                        };
-                        
-                        this.worker.onerror = (error) => {
-                            console.error('Worker error:', error);
-                            this.worker = null;
-                            reject(new Error(`Worker 初始化失败: ${error.message || 'Unknown error'}`));
-                        };
-
-                        // 设置初始化超时
-                        const initTimeout = setTimeout(() => {
-                            if (this.worker) {
-                                this.worker.terminate();
-                                this.worker = null;
-                            }
-                            reject(new Error('Worker 初始化超时'));
-                        }, this.options.timeout);
-
-                        // 等待 worker 准备就绪
-                        const readyHandler = (event) => {
-                            if (event.data.id === 'worker-ready') {
-                                clearTimeout(initTimeout);
-                                this.worker.removeEventListener('message', readyHandler);
-                                resolve();
-                            }
-                        };
-                        
-                        this.worker.addEventListener('message', readyHandler);
-                        
-                    } catch (error) {
-                        console.error('Worker 创建失败:', error);
-                        this.worker = null;
-                        reject(new Error(`Worker 创建失败: ${error.message || 'Unknown error'}`));
-                    }
-                });
-            }
-
-            handleWorkerMessage(message) {
-                if (message.id === 'worker-ready') return;
-
-                const pending = this.pendingTasks.get(message.id);
-                if (!pending) return;
-
-                if (pending.timeout) {
-                    clearTimeout(pending.timeout);
-                }
-
-                this.pendingTasks.delete(message.id);
-
-                if (message.type === 'result') {
-                    // 处理可能的 Transferable 数据
-                    const payload = dataTransfer.processReceivedData(message.payload);
-                    pending.resolve(payload);
-                } else if (message.type === 'error') {
-                    const payload = dataTransfer.processReceivedData(message.payload);
-                    pending.reject(new Error(payload.error));
-                }
-            }
-
-            async sendTask(type, config) {
-                await this.initWorker();
-                
-                if (!this.worker) {
-                    throw new Error('Worker not initialized');
-                }
-
-                if (this.pendingTasks.size >= this.options.maxConcurrent) {
-                    throw new Error(`Too many concurrent tasks (max: ${this.options.maxConcurrent})`);
-                }
-
-                const taskId = `task_${++this.taskCounter}_${Date.now()}`;
-                
-                return new Promise((resolve, reject) => {
-                    const timeout = setTimeout(() => {
-                        this.pendingTasks.delete(taskId);
-                        reject(new Error(`Task timeout after ${this.options.timeout}ms`));
-                    }, this.options.timeout);
-
-                    this.pendingTasks.set(taskId, { resolve, reject, timeout });
-
-                    // 准备数据进行传输（智能选择是否使用 Transferable）
-                    const { transferData, transferables, useTransferable } = dataTransfer.prepareDataForTransfer(config);
-                    
-                    const message = {
-                        id: taskId,
-                        type,
-                        payload: transferData
-                    };
-
-                    // 根据是否使用 Transferable 选择不同的发送方式
-                    if (useTransferable && transferables) {
-                        message.transferable = transferables;
-                        this.worker.postMessage(message, transferables);
-                    } else {
-                        this.worker.postMessage(message);
-                    }
-                });
-            }
-
-            async analyzeKeywords(text, config, options) {
-                const taskConfig = { text, config, options };
-                const result = await this.sendTask('analyze_keywords', taskConfig);
-                
-                if (!result.success) {
-                    throw new Error(result.error || 'Analysis failed');
-                }
-
-                return {
-                    keywords: result.data?.keywords,
-                    keyphrases: result.data?.keyphrases,
-                    duration: result.duration || 0
-                };
-            }
-
-            async analyzeSentences(text, config, options) {
-                const taskConfig = { text, config, options };
-                const result = await this.sendTask('analyze_sentences', taskConfig);
-                
-                if (!result.success) {
-                    throw new Error(result.error || 'Analysis failed');
-                }
-
-                return {
-                    sentences: result.data?.sentences,
-                    summary: result.data?.summary,
-                    duration: result.duration || 0
-                };
-            }
-
-            async analyzeText(text, keywordConfig, sentenceConfig, options) {
-                const [keywordResult, sentenceResult] = await Promise.all([
-                    this.analyzeKeywords(text, keywordConfig, {
-                        keywords: options?.keywords,
-                        keyphrases: options?.keyphrases
-                    }),
-                    this.analyzeSentences(text, sentenceConfig, {
-                        sentences: options?.sentences,
-                        summary: options?.summary
-                    })
-                ]);
-
-                return {
-                    keywords: keywordResult.keywords,
-                    keyphrases: keywordResult.keyphrases,
-                    sentences: sentenceResult.sentences,
-                    summary: sentenceResult.summary,
-                    totalDuration: keywordResult.duration + sentenceResult.duration
-                };
-            }
-
-            getStatus() {
-                return {
-                    pendingTasks: this.pendingTasks.size,
-                    maxConcurrent: this.options.maxConcurrent,
-                    workerReady: this.worker !== null
-                };
-            }
-
-            terminate() {
-                for (const [taskId, task] of this.pendingTasks) {
-                    if (task.timeout) {
-                        clearTimeout(task.timeout);
-                    }
-                    task.reject(new Error('Worker terminated'));
-                }
-                this.pendingTasks.clear();
-
-                if (this.worker) {
-                    this.worker.terminate();
-                    this.worker = null;
-                }
-            }
-        }
-        
-        let workerClient;
-        
-        // 初始化 Worker 客户端
-        async function initWorker() {
-            try {
-                // 使用独立的 Worker 文件
-                workerClient = new TextRankWorkerClient('./textrank-worker-standalone.js', {
-                    timeout: 30000,
-                    maxConcurrent: 10
-                });
-                
-                updateWorkerStatus();
-                setInterval(updateWorkerStatus, 1000);
-                
-                console.log('Worker 客户端初始化成功');
-            } catch (error) {
-                console.error('Worker 初始化失败:', error);
-                showError('Worker 初始化失败: ' + error.message, 'keywordError');
-            }
-        }
-        
-        // 更新 Worker 状态
-        function updateWorkerStatus() {
-            if (!workerClient) return;
-            
-            const status = workerClient.getStatus();
-            document.getElementById('pendingTasks').textContent = status.pendingTasks;
-            document.getElementById('maxConcurrent').textContent = status.maxConcurrent;
-            document.getElementById('workerReady').textContent = status.workerReady ? '✅ 就绪' : '⏳ 初始化中';
-        }
-        
-        // 显示错误信息
-        function showError(message, elementId) {
-            const errorEl = document.getElementById(elementId);
-            errorEl.textContent = message;
-            errorEl.style.display = 'block';
-            setTimeout(() => {
-                errorEl.style.display = 'none';
-            }, 5000);
-        }
-        
-        // 显示性能信息
-        function showPerformance(duration, elementId, extraInfo = '') {
-            const perfEl = document.getElementById(elementId);
-            perfEl.innerHTML = `⏱️ 执行时间: ${duration.toFixed(2)}ms ${extraInfo}`;
-            perfEl.style.display = 'block';
-        }
-        
-        // 显示状态信息
-        function showStatus(message, elementId) {
-            const statusEl = document.getElementById(elementId);
-            statusEl.innerHTML = message;
-        }
-        
-        // 关键词分析
-        async function analyzeKeywords() {
-            const text = document.getElementById('keywordInput').value.trim();
-            if (!text) {
-                showError('请输入要分析的文本', 'keywordError');
-                return;
-            }
-            
-            showStatus('🔄 正在分析关键词...', 'keywordStatus');
-            document.getElementById('analyzeKeywords').disabled = true;
-            
-            try {
-                const config = {
-                    window: parseInt(document.getElementById('window').value),
-                    lower: true,
-                    vertexSource: 'all_filters',
-                    edgeSource: 'no_stop_words'
-                };
-                
-                const options = {
-                    keywords: {
-                        num: parseInt(document.getElementById('keywordNum').value),
-                        wordMinLen: parseInt(document.getElementById('keywordMinLen').value)
-                    },
-                    keyphrases: {
-                        keywordsNum: parseInt(document.getElementById('keyphraseNum').value),
-                        minOccurNum: 2
-                    }
-                };
-                
-                const result = await workerClient.analyzeKeywords(text, config, options);
-                
-                // 显示关键词
-                const keywordList = document.getElementById('keywordList');
-                keywordList.innerHTML = result.keywords?.map(item => 
-                    `<span class="keyword">${item.word} (${item.weight.toFixed(3)})</span>`
-                ).join('') || '无关键词';
-                
-                // 显示关键短语
-                const keyphraseList = document.getElementById('keyphraseList');
-                keyphraseList.innerHTML = result.keyphrases?.map(phrase => 
-                    `<span class="keyword">${phrase}</span>`
-                ).join('') || '无关键短语';
-                
-                document.getElementById('keywordResults').style.display = 'block';
-                showPerformance(result.duration, 'keywordPerformance');
-                showStatus('✅ 分析完成', 'keywordStatus');
-                
-            } catch (error) {
-                showError('分析失败: ' + error.message, 'keywordError');
-                showStatus('', 'keywordStatus');
-            }
-            
-            document.getElementById('analyzeKeywords').disabled = false;
-        }
-        
-        // 并行关键词分析
-        async function analyzeKeywordsParallel() {
-            const text = document.getElementById('keywordInput').value.trim();
-            if (!text) {
-                showError('请输入要分析的文本', 'keywordError');
-                return;
-            }
-            
-            showStatus('🔄 正在并行分析关键词（3个任务）...', 'keywordStatus');
-            document.getElementById('analyzeKeywordsParallel').disabled = true;
-            
-            try {
-                const startTime = performance.now();
-                
-                // 同时启动3个分析任务
-                const tasks = [
-                    workerClient.analyzeKeywords(text, { window: 2 }, { keywords: { num: 5 } }),
-                    workerClient.analyzeKeywords(text, { window: 3 }, { keywords: { num: 8 } }),
-                    workerClient.analyzeKeywords(text, { window: 4 }, { keywords: { num: 10 } })
-                ];
-                
-                const results = await Promise.all(tasks);
-                const totalTime = performance.now() - startTime;
-                
-                // 合并结果
-                const allKeywords = new Map();
-                results.forEach(result => {
-                    result.keywords?.forEach(item => {
-                        const existing = allKeywords.get(item.word);
-                        if (!existing || item.weight > existing.weight) {
-                            allKeywords.set(item.word, item);
-                        }
-                    });
-                });
-                
-                const mergedKeywords = Array.from(allKeywords.values())
-                    .sort((a, b) => b.weight - a.weight)
-                    .slice(0, 15);
-                
-                // 显示结果
-                const keywordList = document.getElementById('keywordList');
-                keywordList.innerHTML = mergedKeywords.map(item => 
-                    `<span class="keyword">${item.word} (${item.weight.toFixed(3)})</span>`
-                ).join('') || '无关键词';
-                
-                document.getElementById('keyphraseList').innerHTML = '并行分析模式未包含短语分析';
-                document.getElementById('keywordResults').style.display = 'block';
-                
-                const workerTime = results.reduce((sum, r) => sum + r.duration, 0);
-                showPerformance(totalTime, 'keywordPerformance', 
-                    `| Worker总时间: ${workerTime.toFixed(2)}ms | 并行加速: ${(workerTime/totalTime).toFixed(2)}x`);
-                showStatus('✅ 并行分析完成', 'keywordStatus');
-                
-            } catch (error) {
-                showError('并行分析失败: ' + error.message, 'keywordError');
-                showStatus('', 'keywordStatus');
-            }
-            
-            document.getElementById('analyzeKeywordsParallel').disabled = false;
-        }
-        
-        // 文本摘要分析
-        async function analyzeSummary() {
-            const text = document.getElementById('summaryInput').value.trim();
-            if (!text) {
-                showError('请输入要分析的文本', 'summaryError');
-                return;
-            }
-            
-            showStatus('🔄 正在生成摘要...', 'summaryStatus');
-            document.getElementById('analyzeSummary').disabled = true;
-            
-            try {
-                const config = {
-                    lower: true,
-                    source: 'all_filters'
-                };
-                
-                const options = {
-                    sentences: {
-                        num: parseInt(document.getElementById('sentenceNum').value),
-                        sentenceMinLen: parseInt(document.getElementById('summaryMinLen').value)
-                    },
-                    summary: {
-                        num: parseInt(document.getElementById('summaryNum').value),
-                        sentenceMinLen: parseInt(document.getElementById('summaryMinLen').value),
-                        sortByIndex: document.getElementById('sortByIndex').checked
-                    }
-                };
-                
-                const result = await workerClient.analyzeSentences(text, config, options);
-                
-                // 显示重要句子
-                const sentenceList = document.getElementById('sentenceList');
-                sentenceList.innerHTML = result.sentences?.map(item => 
-                    `<div class="sentence">
-                        <strong>权重: ${item.weight.toFixed(3)}</strong><br>
-                        ${item.sentence}
-                    </div>`
-                ).join('') || '无重要句子';
-                
-                // 显示摘要
-                if (result.summary) {
-                    document.getElementById('summaryContent').textContent = result.summary;
-                    document.getElementById('summaryText').style.display = 'block';
-                } else {
-                    document.getElementById('summaryText').style.display = 'none';
-                }
-                
-                document.getElementById('summaryResults').style.display = 'block';
-                showPerformance(result.duration, 'summaryPerformance');
-                showStatus('✅ 摘要生成完成', 'summaryStatus');
-                
-            } catch (error) {
-                showError('摘要生成失败: ' + error.message, 'summaryError');
-                showStatus('', 'summaryStatus');
-            }
-            
-            document.getElementById('analyzeSummary').disabled = false;
-        }
-        
-        // 完整分析（关键词 + 摘要）
-        async function analyzeBoth() {
-            const keywordText = document.getElementById('keywordInput').value.trim();
-            const summaryText = document.getElementById('summaryInput').value.trim();
-            
-            if (!keywordText || !summaryText) {
-                showError('请确保两个文本框都有内容', 'summaryError');
-                return;
-            }
-            
-            showStatus('🔄 正在进行完整分析...', 'summaryStatus');
-            document.getElementById('analyzeBoth').disabled = true;
-            
-            try {
-                const result = await workerClient.analyzeText(
-                    summaryText, // 使用摘要文本框的内容
-                    { window: 2, lower: true }, // 关键词配置
-                    { source: 'all_filters' },  // 句子配置
-                    {
-                        keywords: { num: 8 },
-                        keyphrases: { keywordsNum: 10 },
-                        sentences: { num: 5 },
-                        summary: { num: 3, sortByIndex: true }
-                    }
-                );
-                
-                // 更新关键词结果
-                if (result.keywords) {
-                    const keywordList = document.getElementById('keywordList');
-                    keywordList.innerHTML = result.keywords.map(item => 
-                        `<span class="keyword">${item.word} (${item.weight.toFixed(3)})</span>`
-                    ).join('');
-                    document.getElementById('keywordResults').style.display = 'block';
-                }
-                
-                if (result.keyphrases) {
-                    const keyphraseList = document.getElementById('keyphraseList');
-                    keyphraseList.innerHTML = result.keyphrases.map(phrase => 
-                        `<span class="keyword">${phrase}</span>`
-                    ).join('');
-                }
-                
-                // 更新摘要结果
-                if (result.sentences) {
-                    const sentenceList = document.getElementById('sentenceList');
-                    sentenceList.innerHTML = result.sentences.map(item => 
-                        `<div class="sentence">
-                            <strong>权重: ${item.weight.toFixed(3)}</strong><br>
-                            ${item.sentence}
-                        </div>`
-                    ).join('');
-                    document.getElementById('summaryResults').style.display = 'block';
-                }
-                
-                if (result.summary) {
-                    document.getElementById('summaryContent').textContent = result.summary;
-                    document.getElementById('summaryText').style.display = 'block';
-                }
-                
-                showPerformance(result.totalDuration, 'summaryPerformance', '(并行执行)');
-                showStatus('✅ 完整分析完成', 'summaryStatus');
-                
-            } catch (error) {
-                showError('完整分析失败: ' + error.message, 'summaryError');
-                showStatus('', 'summaryStatus');
-            }
-            
-            document.getElementById('analyzeBoth').disabled = false;
-        }
-        
-        // 终止 Worker
-        function terminateWorker() {
-            if (workerClient) {
-                workerClient.terminate();
-                workerClient = null;
-                showStatus('❌ Worker 已终止', 'summaryStatus');
-                document.getElementById('workerReady').textContent = '❌ 已终止';
-            }
-        }
-        
-        // 重新初始化 Worker
-        async function reinitWorker() {
-            terminateWorker();
-            await initWorker();
-            showStatus('🔄 Worker 已重新初始化', 'summaryStatus');
-        }
-        
-        // 事件监听器
-        document.getElementById('analyzeKeywords').addEventListener('click', analyzeKeywords);
-        document.getElementById('analyzeKeywordsParallel').addEventListener('click', analyzeKeywordsParallel);
-        document.getElementById('analyzeSummary').addEventListener('click', analyzeSummary);
-        document.getElementById('analyzeBoth').addEventListener('click', analyzeBoth);
-        document.getElementById('terminateWorker').addEventListener('click', terminateWorker);
-        document.getElementById('reinitWorker').addEventListener('click', reinitWorker);
-        
-        // 初始化
-        initWorker();
-    </script>
 </body>
 </html>

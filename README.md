@@ -42,8 +42,10 @@ npm install textrank4zh-ts
 ```
 
 ### 在线演示
-🔗 [浏览器在线演示](examples/browser/index.html) - 无需安装，直接在浏览器中体验  
-⚡ [Web Worker 演示](examples/worker/index.html) - 后台线程处理，性能优化演示
+🔗 [浏览器在线演示](https://chaslui.github.io/textrank4zh-ts/browser/) - 无需安装，直接在浏览器中体验  
+⚡ [Web Worker 演示](https://chaslui.github.io/textrank4zh-ts/worker/) - 后台线程处理，性能优化演示  
+🔧 [构建集成示例](https://chaslui.github.io/textrank4zh-ts/build-usage/) - 各种构建方式和部署示例  
+🚀 [完整演示中心](https://chaslui.github.io/textrank4zh-ts/) - 所有功能和示例的综合展示
 
 ## 快速开始
 
