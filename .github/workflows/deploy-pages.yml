@@ -563,6 +563,9 @@ jobs:
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
+        with:
+          enablement: true
+        continue-on-error: true
       
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
@@ -580,3 +583,25 @@ jobs:
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
+        continue-on-error: true
+      
+      - name: Check deployment status
+        run: |
+          if [ "${{ steps.deployment.outcome }}" == "success" ]; then
+            echo "✅ GitHub Pages 部署成功!"
+            echo "🌐 访问地址: ${{ steps.deployment.outputs.page_url }}"
+          else
+            echo "❌ GitHub Pages 部署失败，可能的原因："
+            echo "1. GitHub Pages 功能未启用"
+            echo "2. 仓库权限配置不正确" 
+            echo "3. Pages 源未设置为 GitHub Actions"
+            echo ""
+            echo "📖 请参考项目根目录的 GITHUB_PAGES_SETUP.md 文件进行配置"
+            echo ""
+            echo "🔧 手动配置步骤："
+            echo "   1. 进入仓库 Settings > Pages"
+            echo "   2. Source 选择 'GitHub Actions'"
+            echo "   3. 在 Settings > Actions > General 中启用读写权限"
+            echo ""
+            exit 1
+          fi
