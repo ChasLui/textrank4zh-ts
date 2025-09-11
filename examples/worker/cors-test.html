@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker 跨域修复验证</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .test-result {
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 5px solid #007acc;
+        }
+        .success {
+            background: #d4edda;
+            border-left-color: #28a745;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border-left-color: #dc3545;
+            color: #721c24;
+        }
+        .pending {
+            background: #fff3cd;
+            border-left-color: #ffc107;
+            color: #856404;
+        }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        button:hover { background: #005a9e; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 10px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Worker 跨域修复验证</h1>
+    <p>此页面专门验证WebWorker跨域问题的修复效果</p>
+
+    <div id="cors-test" class="test-result pending">
+        <h3>跨域修复测试</h3>
+        <p>状态: 等待测试</p>
+    </div>
+
+    <div id="worker-test" class="test-result pending">
+        <h3>Worker功能测试</h3>
+        <p>状态: 等待测试</p>
+    </div>
+
+    <button onclick="runAllTests()">🚀 开始全面测试</button>
+    <button onclick="testWorkerOnly()">⚡ 仅测试Worker</button>
+    <button onclick="clearLogs()">🗑️ 清除日志</button>
+
+    <div id="test-log" class="log">点击按钮开始测试...</div>
+
+    <script>
+        function log(message, isError = false) {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = isError ? '❌' : '✅';
+            logDiv.innerHTML += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateTestResult(elementId, status, message) {
+            const element = document.getElementById(elementId);
+            element.className = `test-result ${status}`;
+            element.innerHTML = `<h3>${element.querySelector('h3').textContent}</h3><p>${message}</p>`;
+        }
+
+        function clearLogs() {
+            document.getElementById('test-log').innerHTML = '日志已清除\n';
+        }
+
+        async function testCORSFix() {
+            log('开始测试跨域修复...');
+            updateTestResult('cors-test', 'pending', '正在测试跨域修复...');
+
+            try {
+                // 测试同源路径能否访问
+                const paths = [
+                    '../../dist/index.worker.js',
+                    '../../dist/index.sharedworker.js',
+                    '../../package.json'
+                ];
+
+                let successCount = 0;
+                for (const path of paths) {
+                    try {
+                        const response = await fetch(path, { method: 'HEAD' });
+                        if (response.ok) {
+                            log(`同源文件可访问: ${path}`);
+                            successCount++;
+                        } else {
+                            log(`同源文件访问失败: ${path} (状态: ${response.status})`, true);
+                        }
+                    } catch (error) {
+                        log(`同源文件访问错误: ${path} - ${error.message}`, true);
+                    }
+                }
+
+                if (successCount === paths.length) {
+                    updateTestResult('cors-test', 'success', `跨域修复成功！所有 ${successCount} 个文件都可以通过同源路径访问`);
+                    return true;
+                } else {
+                    updateTestResult('cors-test', 'error', `跨域修复部分失败：${successCount}/${paths.length} 个文件可访问`);
+                    return false;
+                }
+
+            } catch (error) {
+                log(`跨域测试失败: ${error.message}`, true);
+                updateTestResult('cors-test', 'error', `跨域测试失败: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function testWorkerFunctionality() {
+            log('开始测试Worker功能...');
+            updateTestResult('worker-test', 'pending', '正在测试Worker功能...');
+
+            try {
+                const workerUrl = '../../dist/index.worker.js';
+                log(`创建Worker: ${workerUrl}`);
+                
+                const worker = new Worker(workerUrl);
+                
+                // 设置5秒超时
+                const timeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Worker超时')), 5000)
+                );
+
+                // 测试Worker通信
+                const workerTest = new Promise((resolve, reject) => {
+                    worker.onmessage = (event) => {
+                        log(`收到Worker响应: ${JSON.stringify(event.data)}`);
+                        worker.terminate();
+                        resolve(event.data);
+                    };
+
+                    worker.onerror = (error) => {
+                        worker.terminate();
+                        reject(new Error(`Worker错误: ${error.message}`));
+                    };
+
+                    // 发送测试消息
+                    const testMessage = {
+                        id: 'test-cors-fix',
+                        type: 'analyze_keywords',
+                        payload: {
+                            text: '这是一个测试文本，用来验证Worker功能。',
+                            config: { window: 2, lower: true },
+                            options: { keywords: { num: 3 } }
+                        }
+                    };
+
+                    log(`发送测试消息: ${testMessage.id}`);
+                    worker.postMessage(testMessage);
+                });
+
+                // 等待结果或超时
+                const result = await Promise.race([workerTest, timeout]);
+                
+                if (result && result.payload) {
+                    const keywordCount = result.payload.keywords?.length || 0;
+                    updateTestResult('worker-test', 'success', 
+                        `Worker功能正常！成功提取 ${keywordCount} 个关键词`);
+                    log(`Worker测试成功，提取了 ${keywordCount} 个关键词`);
+                    return true;
+                } else {
+                    updateTestResult('worker-test', 'error', 'Worker响应格式异常');
+                    return false;
+                }
+
+            } catch (error) {
+                log(`Worker测试失败: ${error.message}`, true);
+                updateTestResult('worker-test', 'error', `Worker测试失败: ${error.message}`);
+                return false;
+            }
+        }
+
+        async function runAllTests() {
+            clearLogs();
+            log('开始全面测试...');
+
+            const corsSuccess = await testCORSFix();
+            const workerSuccess = await testWorkerFunctionality();
+
+            if (corsSuccess && workerSuccess) {
+                log('🎉 所有测试通过！跨域问题已完全修复！');
+            } else if (corsSuccess) {
+                log('⚠️ 跨域修复成功，但Worker功能有问题');
+            } else {
+                log('❌ 跨域问题未完全解决');
+            }
+        }
+
+        async function testWorkerOnly() {
+            clearLogs();
+            await testWorkerFunctionality();
+        }
+
+        // 页面加载完成后显示当前URL信息
+        window.addEventListener('load', () => {
+            log(`当前页面: ${window.location.href}`);
+            log(`预期Worker路径: ${new URL('../../dist/index.worker.js', window.location.href).href}`);
+        });
+    </script>
+</body>
+</html>
