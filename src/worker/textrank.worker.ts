@@ -62,8 +62,8 @@ async function handleKeywordAnalysis(config: WorkerTaskConfig): Promise<any> {
     hasKeyphrases: !!config.options?.keyphrases
   });
 
-  if (analysisResult.isErr()) {
-    throw new Error(`关键词分析失败: ${analysisResult.error.message}`);
+  if (!analysisResult.ok) {
+    throw new Error(`关键词分析失败: ${analysisResult.error?.message || '未知错误'}`);
   }
   
   return analysisResult.value;
@@ -112,8 +112,8 @@ async function handleSentenceAnalysis(config: WorkerTaskConfig): Promise<any> {
     hasSummary: !!config.options?.summary
   });
 
-  if (analysisResult.isErr()) {
-    throw new Error(`句子分析失败: ${analysisResult.error.message}`);
+  if (!analysisResult.ok) {
+    throw new Error(`句子分析失败: ${analysisResult.error?.message || '未知错误'}`);
   }
   
   return analysisResult.value;
@@ -166,11 +166,11 @@ self.onmessage = async (event: MessageEvent<WorkerMessage>) => {
     return result;
   }, ErrorType.WORKER_ERROR, { messageId: message.id, messageType: message.type });
 
-  if (messageResult.isErr()) {
+  if (!messageResult.ok) {
     const result: WorkerResult = {
       id: message.id,
       success: false,
-      error: messageResult.error.message
+      error: messageResult.error?.message || '未知错误'
     };
     
     self.postMessage({

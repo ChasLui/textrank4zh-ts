@@ -101,18 +101,18 @@ class SharedWorkerManager {
       }
     }, ErrorType.WORKER_ERROR, { connectionId, messageId: message.id, messageType: message.type });
 
-    if (handleResult.isErr()) {
+    if (!handleResult.ok) {
       const errorResponse: WorkerMessage = {
         id: message.id,
         type: 'error',
         payload: {
-          error: handleResult.error.message,
+          error: handleResult.error?.message || '未知错误',
           connectionId
         }
       };
       
       connection.port.postMessage(errorResponse);
-      console.error(`SharedWorker 任务失败: ${message.id}`, handleResult.error.message);
+      console.error(`SharedWorker 任务失败: ${message.id}`, handleResult.error?.message || '未知错误');
     }
   }
 
@@ -182,8 +182,8 @@ class SharedWorkerManager {
 
       throw new Error(`不支持的任务类型: ${type}`);
     }, ErrorType.COMPUTATION_ERROR, { taskType: type, textLength: text?.length }).then(result => {
-      if (result.isErr()) {
-        throw new Error(result.error.message);
+      if (!result.ok) {
+        throw new Error(result.error?.message || '未知错误');
       }
       return result.value;
     });

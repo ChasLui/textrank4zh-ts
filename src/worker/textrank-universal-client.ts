@@ -110,8 +110,8 @@ export class TextRankUniversalClient {
           return result;
         }, this.options.syncScheduling || {});
         
-        if (taskResult.isErr()) {
-          throw new Error(`关键词分析失败: ${taskResult.error.message}`);
+        if (!taskResult.ok) {
+          throw new Error(`关键词分析失败: ${taskResult.error?.message || '未知错误'}`);
         }
         return taskResult.value;
       },
@@ -141,8 +141,8 @@ export class TextRankUniversalClient {
           return result;
         }, this.options.syncScheduling || {});
         
-        if (taskResult.isErr()) {
-          throw new Error(`句子分析失败: ${taskResult.error.message}`);
+        if (!taskResult.ok) {
+          throw new Error(`句子分析失败: ${taskResult.error?.message || '未知错误'}`);
         }
         return taskResult.value;
       }
@@ -170,8 +170,8 @@ export class TextRankUniversalClient {
       console.log(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化成功`);
     }, ErrorType.WORKER_ERROR, { workerType: this.currentWorkerType });
 
-    if (initResult.isErr()) {
-      console.warn(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化失败:`, initResult.error.message);
+    if (!initResult.ok) {
+      console.warn(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化失败:`, initResult.error?.message || '未知错误');
       const fallbackResult = await this.fallbackToNextWorkerType();
       return fallbackResult;
     }
@@ -198,8 +198,8 @@ export class TextRankUniversalClient {
       await this.waitForWorkerReady();
     }, ErrorType.WORKER_ERROR, { workerType: 'SharedWorker', url: this.workerUrl });
 
-    if (initResult.isErr()) {
-      throw new Error(`SharedWorker 初始化失败: ${initResult.error.message}`);
+    if (!initResult.ok) {
+      throw new Error(`SharedWorker 初始化失败: ${initResult.error?.message || '未知错误'}`);
     }
   }
 
@@ -216,8 +216,8 @@ export class TextRankUniversalClient {
       await this.waitForWorkerReady();
     }, ErrorType.WORKER_ERROR, { workerType: 'DedicatedWorker', url: this.workerUrl });
 
-    if (initResult.isErr()) {
-      throw new Error(`DedicatedWorker 初始化失败: ${initResult.error.message}`);
+    if (!initResult.ok) {
+      throw new Error(`DedicatedWorker 初始化失败: ${initResult.error?.message || '未知错误'}`);
     }
   }
 
@@ -266,8 +266,8 @@ export class TextRankUniversalClient {
       }
 
       const initResult = await this.initializeWorker();
-      if (initResult.isErr()) {
-        throw new Error(`降级后初始化失败: ${initResult.error.message}`);
+      if (!initResult.ok) {
+        throw new Error(`降级后初始化失败: ${initResult.error?.message || '未知错误'}`);
       }
     }, ErrorType.WORKER_ERROR, { originalType: this.currentWorkerType, fallback: true });
   }
@@ -368,9 +368,9 @@ export class TextRankUniversalClient {
       
       return {
         id: `sync-${Date.now()}`,
-        success: syncResult.isOk(),
-        data: syncResult.isOk() ? syncResult.value : undefined,
-        error: syncResult.isErr() ? syncResult.error.message : undefined,
+        success: syncResult.ok,
+        data: syncResult.ok ? syncResult.value : undefined,
+        error: !syncResult.ok ? syncResult.error?.message : undefined,
         duration: Date.now() - startTime
       };
     }
@@ -400,9 +400,9 @@ export class TextRankUniversalClient {
       
       return {
         id: `sync-${Date.now()}`,
-        success: syncResult.isOk(),
-        data: syncResult.isOk() ? syncResult.value : undefined,
-        error: syncResult.isErr() ? syncResult.error.message : undefined,
+        success: syncResult.ok,
+        data: syncResult.ok ? syncResult.value : undefined,
+        error: !syncResult.ok ? syncResult.error?.message : undefined,
         duration: Date.now() - startTime
       };
     }
@@ -490,8 +490,8 @@ export class TextRankUniversalClient {
 
     const optimizeResult = await safeAsync(async () => {
       const busynessResult = await mainThreadScheduler.measureMainThreadBusyness();
-      if (busynessResult.isErr()) {
-        throw new Error(`主线程繁忙程度检测失败: ${busynessResult.error.message}`);
+      if (!busynessResult.ok) {
+        throw new Error(`主线程繁忙程度检测失败: ${busynessResult.error?.message || '未知错误'}`);
       }
       
       const busyness = busynessResult.value;
@@ -530,8 +530,8 @@ export class TextRankUniversalClient {
       console.log(`TextRank4ZH-TS: 根据主线程繁忙程度 (${busyness.averageFrameTime.toFixed(2)}ms) 调整为 ${busyness.recommendation} 调度策略`);
     }, ErrorType.COMPUTATION_ERROR, { feature: 'sync-scheduling-optimization' });
 
-    if (optimizeResult.isErr()) {
-      console.warn('TextRank4ZH-TS: 主线程繁忙程度检测失败', optimizeResult.error.message);
+    if (!optimizeResult.ok) {
+      console.warn('TextRank4ZH-TS: 主线程繁忙程度检测失败', optimizeResult.error?.message || '未知错误');
     }
     
     return optimizeResult;

@@ -27,7 +27,7 @@ export function createError(
  * 创建成功的 Result
  */
 export function ok<T>(value: T): TextRankResult<T> {
-  return Result.ok(value);
+  return Result.ok(value) as TextRankResult<T>;
 }
 
 /**
@@ -59,14 +59,14 @@ export function safeSync<T>(
 ): TextRankResult<T> {
   try {
     const result = fn();
-    return Result.ok(result);
+    return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
     return Result.error(createError(
       errorType,
       error instanceof Error ? error.message : String(error),
       error instanceof Error ? error : undefined,
       context
-    ));
+    )) as TextRankResult<T>;
   }
 }
 
@@ -80,14 +80,14 @@ export async function safeAsync<T>(
 ): AsyncTextRankResult<T> {
   try {
     const result = await fn();
-    return Result.ok(result);
+    return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
     return Result.error(createError(
       errorType,
       error instanceof Error ? error.message : String(error),
       error instanceof Error ? error : undefined,
       context
-    ));
+    )) as TextRankResult<T>;
   }
 }
 
@@ -101,14 +101,14 @@ export async function fromPromise<T>(
 ): AsyncTextRankResult<T> {
   try {
     const result = await promise;
-    return Result.ok(result);
+    return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
     return Result.error(createError(
       errorType,
       error instanceof Error ? error.message : String(error),
       error instanceof Error ? error : undefined,
       context
-    ));
+    )) as TextRankResult<T>;
   }
 }
 
@@ -165,7 +165,7 @@ export function mapResult<T, U>(
   result: TextRankResult<T>,
   mapper: (value: T) => U
 ): TextRankResult<U> {
-  return result.map(mapper);
+  return result.map(mapper) as TextRankResult<U>;
 }
 
 /**
@@ -178,7 +178,7 @@ export function chainResult<T, U>(
   if (result.ok) {
     return chainer(result.value!);
   } else {
-    return result as any;
+    return result as TextRankResult<U>;
   }
 }
 
@@ -241,16 +241,16 @@ export async function withTimeout<T>(
 
   try {
     const result = await Promise.race([promise, timeoutPromise]);
-    return Result.ok(result);
+    return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
     if (error instanceof Error && error.message.includes('操作超时')) {
-      return Result.error(error as TextRankError);
+      return Result.error(error as unknown as TextRankError) as TextRankResult<T>;
     }
     return Result.error(createError(
       ErrorType.COMPUTATION_ERROR,
       error instanceof Error ? error.message : String(error),
       error instanceof Error ? error : undefined,
       context
-    ));
+    )) as TextRankResult<T>;
   }
 }

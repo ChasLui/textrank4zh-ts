@@ -317,7 +317,7 @@ export class MainThreadScheduler {
         if (!executeResult.ok) {
           reject(new Error(executeResult.error!.message));
         } else {
-          resolve(executeResult.value);
+          resolve(executeResult.value as T);
         }
       };
 
@@ -340,7 +340,7 @@ export class MainThreadScheduler {
     if (!executeResult.ok) {
       throw new Error(executeResult.error!.message);
     }
-    return executeResult.value;
+    return executeResult.value as T;
   }
 
   /**
@@ -361,7 +361,7 @@ export class MainThreadScheduler {
           if (!result.ok) {
             throw new Error(`任务执行失败: ${result.error.message}`);
           }
-          values.push(result.value);
+          values.push(result.value as T);
         }
         return values;
       } else {
@@ -369,9 +369,9 @@ export class MainThreadScheduler {
         for (const task of tasks) {
           const result = await this.scheduleTask(task, options);
           if (!result.ok) {
-            throw new Error(`任务执行失赅: ${result.error.message}`);
+            throw new Error(`任务执行失败: ${result.error.message}`);
           }
-          results.push(result.value);
+          results.push(result.value as T);
         }
         return results;
       }

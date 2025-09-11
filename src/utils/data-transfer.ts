@@ -234,7 +234,7 @@ export class WorkerDataTransfer implements DataTransferUtils {
       } as TextRankResult<T>;
     }
     
-    return safeSync(() => JSON.parse(textResult.value), ErrorType.SERIALIZATION_ERROR, { bufferSize: buffer.byteLength });
+    return safeSync(() => JSON.parse(textResult.value) as T, ErrorType.SERIALIZATION_ERROR, { bufferSize: buffer.byteLength });
   }
 
   /**
@@ -466,7 +466,7 @@ export class WorkerDataTransfer implements DataTransferUtils {
     }
     
     return {
-      data: result.value,
+      data: result.value as T,
       success: true,
     };
   }
