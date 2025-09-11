@@ -3,6 +3,8 @@
 TextRank算法的TypeScript实现，专门用于中文文本的关键词提取和摘要生成。这是对原Python版本[TextRank4ZH](https://github.com/someus/TextRank4ZH)的TypeScript重写，**完全支持浏览器环境**。
 
 [![npm version](https://badge.fury.io/js/textrank4zh-ts.svg)](https://badge.fury.io/js/textrank4zh-ts)
+[![CI](https://github.com/ChasLui/textrank4zh-ts/workflows/CI/badge.svg)](https://github.com/ChasLui/textrank4zh-ts/actions)
+[![codecov](https://codecov.io/gh/ChasLui/textrank4zh-ts/branch/main/graph/badge.svg)](https://codecov.io/gh/ChasLui/textrank4zh-ts)
 [![TypeScript](https://img.shields.io/badge/%3C%2F%3E-TypeScript-%230074c1.svg)](http://www.typescriptlang.org/)
 [![Browser Support](https://img.shields.io/badge/Browser-ES2020+-green.svg)](https://caniuse.com/es6)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)

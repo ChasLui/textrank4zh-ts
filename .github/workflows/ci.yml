@@ -1,0 +1,218 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  # 确保 pnpm 使用正确的缓存
+  PNPM_CACHE_FOLDER: .pnpm-store
+
+jobs:
+  # 代码质量检查
+  lint:
+    name: Code Quality
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run ESLint
+        run: pnpm run lint
+      
+      - name: Check TypeScript types
+        run: npx tsc --noEmit
+
+  # 测试和覆盖率
+  test:
+    name: Test & Coverage
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x, 22.x]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Run tests with coverage
+        run: pnpm run test:coverage
+      
+      - name: Upload coverage to Codecov
+        if: matrix.node-version == '22.x'
+        uses: codecov/codecov-action@v4
+        with:
+          file: ./coverage/lcov.info
+          flags: unittests
+          name: codecov-umbrella
+          fail_ci_if_error: false
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+
+  # 构建测试
+  build:
+    name: Build Test
+    runs-on: ubuntu-latest
+    needs: [lint]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build project
+        run: pnpm run build
+      
+      - name: Check build outputs
+        run: |
+          ls -la dist/
+          echo "✅ CJS build:" && ls -la dist/index.cjs
+          echo "✅ ESM build:" && ls -la dist/index.mjs
+          echo "✅ IIFE build:" && ls -la dist/index.iife.js
+          echo "✅ Worker builds:" && ls -la dist/index.worker.js dist/index.sharedworker.js
+          echo "✅ Type definitions:" && ls -la dist/index.d.ts
+      
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+          retention-days: 7
+
+  # 浏览器兼容性测试 (可选)
+  browser-test:
+    name: Browser Compatibility
+    runs-on: ubuntu-latest
+    needs: [build]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-artifacts
+          path: dist/
+      
+      - name: Test browser examples
+        run: |
+          # 启动HTTP服务器测试浏览器示例
+          pnpm run serve &
+          SERVER_PID=$!
+          sleep 5
+          
+          # 简单检查示例页面是否可访问
+          curl -f http://localhost:8000/examples/browser/ || echo "Browser example server check"
+          
+          # 清理
+          kill $SERVER_PID 2>/dev/null || true
+
+  # 发布预检查
+  release-check:
+    name: Release Readiness
+    runs-on: ubuntu-latest
+    needs: [lint, test, build]
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.15.0
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.18.0'
+          cache: 'pnpm'
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Test release workflow (dry run)
+        run: pnpm run release:dry
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # 状态检查总结
+  ci-success:
+    name: CI Success
+    runs-on: ubuntu-latest
+    needs: [lint, test, build, browser-test]
+    if: always()
+    
+    steps:
+      - name: Check all jobs status
+        run: |
+          if [ "${{ needs.lint.result }}" != "success" ] || \
+             [ "${{ needs.test.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ] || \
+             [ "${{ needs.browser-test.result }}" != "success" ]; then
+            echo "❌ Some CI jobs failed"
+            exit 1
+          else
+            echo "✅ All CI jobs passed successfully!"
+          fi

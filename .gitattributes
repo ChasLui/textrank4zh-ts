@@ -1,0 +1,9 @@
+# 代码语言识别
+*.ts linguist-language=TypeScript
+*.js linguist-language=JavaScript
+
+# 排除统计的文件
+examples/* linguist-documentation
+tests/* linguist-generated
+dist/* linguist-generated
+*.md linguist-documentation
