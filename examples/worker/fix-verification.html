@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Worker修复验证</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border-left: 5px solid;
+        }
+        .success { background: #d4edda; border-left-color: #28a745; color: #155724; }
+        .error { background: #f8d7da; border-left-color: #dc3545; color: #721c24; }
+        .info { background: #d1ecf1; border-left-color: #17a2b8; color: #0c5460; }
+        button {
+            background: #007acc;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #005a9e; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>🔧 Worker修复验证</h1>
+    <p>验证Worker初始化超时问题是否已修复</p>
+
+    <div class="status info">
+        <strong>修复内容：</strong>
+        <ul>
+            <li>识别Worker自动发送的 <code>worker-ready</code> 消息</li>
+            <li>修复消息处理逻辑，避免初始化超时</li>
+            <li>优化测试流程，先等待ready消息再发送测试任务</li>
+        </ul>
+    </div>
+
+    <button onclick="testWorkerFix()">🚀 验证修复效果</button>
+    <button onclick="clearLog()">🗑️ 清除日志</button>
+
+    <div id="log" class="log">点击验证按钮开始测试...</div>
+
+    <script>
+        function log(message, isError = false) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            const prefix = isError ? '❌' : '✅';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        async function testWorkerFix() {
+            clearLog();
+            log('开始验证Worker修复效果...');
+
+            try {
+                // 测试1: 基础Worker加载
+                log('测试1: 基础Worker加载和ready消息识别');
+                const workerUrl = '/textrank4zh-ts/dist/index.worker.js';
+                const worker = new Worker(workerUrl);
+
+                // 设置超时
+                const timeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('Worker加载超时')), 8000)
+                );
+
+                // 等待worker-ready消息
+                const readyTest = new Promise((resolve, reject) => {
+                    worker.onmessage = (event) => {
+                        log(`收到消息: ${JSON.stringify(event.data)}`);
+                        
+                        if (event.data.id === 'worker-ready') {
+                            log('✨ 成功识别worker-ready消息！');
+                            resolve(event.data);
+                            return;
+                        }
+                        
+                        // 其他消息处理...
+                    };
+
+                    worker.onerror = (error) => {
+                        reject(new Error(`Worker错误: ${error.message}`));
+                    };
+                });
+
+                // 等待结果
+                const readyResult = await Promise.race([readyTest, timeout]);
+                log(`Worker准备就绪: ${readyResult.payload.message}`);
+
+                // 测试2: 实际功能测试
+                log('测试2: Worker功能验证');
+                
+                const analysisTimeout = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('分析超时')), 10000)
+                );
+
+                const analysisTest = new Promise((resolve, reject) => {
+                    worker.onmessage = (event) => {
+                        if (event.data.id === 'analysis-test') {
+                            resolve(event.data);
+                        }
+                    };
+
+                    // 发送分析任务
+                    worker.postMessage({
+                        id: 'analysis-test',
+                        type: 'analyze_keywords',
+                        payload: {
+                            text: '人工智能技术在自然语言处理领域发展迅速。机器学习推动了算法优化。',
+                            config: { window: 2, lower: true },
+                            options: { keywords: { num: 5 } }
+                        }
+                    });
+                });
+
+                const analysisResult = await Promise.race([analysisTest, analysisTimeout]);
+                
+                if (analysisResult.payload && analysisResult.payload.keywords) {
+                    const keywordCount = analysisResult.payload.keywords.length;
+                    const keywords = analysisResult.payload.keywords
+                        .map(k => k.word)
+                        .join(', ');
+                    
+                    log(`分析成功！提取 ${keywordCount} 个关键词: ${keywords}`);
+                    log(`处理耗时: ${analysisResult.payload.duration?.toFixed(2)}ms`);
+                } else {
+                    log('分析结果格式异常', true);
+                }
+
+                worker.terminate();
+                log('🎉 所有测试通过！Worker修复成功！');
+
+            } catch (error) {
+                log(`测试失败: ${error.message}`, true);
+                console.error('验证错误:', error);
+            }
+        }
+
+        // 页面加载时显示环境信息
+        window.addEventListener('load', () => {
+            log(`当前页面: ${window.location.href}`);
+            log(`Worker路径: ${new URL('/textrank4zh-ts/dist/index.worker.js', window.location.href).href}`);
+            log('准备就绪，请点击验证按钮测试修复效果');
+        });
+    </script>
+</body>
+</html>

@@ -102,14 +102,15 @@
                         
                         const ready = new Promise((resolve, reject) => {
                             this.worker.onmessage = (e) => {
-                                if (e.data.type === 'ready' || e.data.id) {
+                                // 正确识别Worker准备就绪消息
+                                if (e.data.id === 'worker-ready' || e.data.id === 'init-test') {
                                     resolve();
                                 }
                             };
                             this.worker.onerror = reject;
                             // 发送测试消息
                             this.worker.postMessage({ 
-                                type: 'test', 
+                                type: 'analyze_keywords', 
                                 id: 'init-test',
                                 payload: { text: '测试', config: {}, options: {} }
                             });

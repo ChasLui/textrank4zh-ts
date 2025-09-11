@@ -154,6 +154,10 @@
                 worker.onmessage = (event) => {
                     clearTimeout(timeout);
                     log('worker-log', `收到消息: ${JSON.stringify(event.data)}`);
+                    // 检查是否为准备就绪消息
+                    if (event.data.id === 'worker-ready') {
+                        log('worker-log', 'Worker准备就绪！');
+                    }
                     worker.terminate();
                     log('worker-log', 'Worker已终止');
                 };
@@ -252,8 +256,15 @@
 
                                 this.worker.onmessage = (event) => {
                                     const message = event.data;
-                                    const task = this.pendingTasks.get(message.id);
                                     
+                                    // 处理worker-ready消息
+                                    if (message.id === 'worker-ready') {
+                                        clearTimeout(timeout);
+                                        resolve();
+                                        return;
+                                    }
+                                    
+                                    const task = this.pendingTasks.get(message.id);
                                     if (task) {
                                         clearTimeout(task.timeout);
                                         this.pendingTasks.delete(message.id);

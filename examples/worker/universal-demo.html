@@ -439,35 +439,48 @@
                         reject(new Error('Worker 初始化超时'));
                     }, 5000);
                     
-                    const testMessage = {
-                        id: 'init-test',
-                        type: 'analyze_keywords',
-                        payload: { text: '', config: {}, options: {} }
-                    };
-
                     // 保存原始处理器
                     this._originalHandlers = {
                         sharedWorkerHandler: this.sharedWorkerPort ? this.sharedWorkerPort.onmessage : null,
                         workerHandler: this.worker ? this.worker.onmessage : null
                     };
 
-                    const testHandler = (event) => {
-                        if (event.data && event.data.id === 'init-test') {
+                    const readyHandler = (event) => {
+                        const data = event.data;
+                        // 监听Worker的ready消息或成功处理测试消息
+                        if (data && (data.id === 'worker-ready' || data.id === 'init-test')) {
                             clearTimeout(timeout);
                             // 恢复原始处理器
                             this.restoreOriginalHandlers();
                             resolve();
                         }
-                        // 移除其他事件的处理，避免死循环
                     };
 
                     try {
                         if (this.sharedWorkerPort) {
-                            this.sharedWorkerPort.onmessage = testHandler;
-                            this.sharedWorkerPort.postMessage(testMessage);
+                            this.sharedWorkerPort.onmessage = readyHandler;
+                            // 尝试发送测试消息（如果Worker没有主动发送ready消息）
+                            setTimeout(() => {
+                                if (!this.isInitialized) {
+                                    this.sharedWorkerPort.postMessage({
+                                        id: 'init-test',
+                                        type: 'analyze_keywords', 
+                                        payload: { text: '测试', config: {}, options: { keywords: { num: 1 } } }
+                                    });
+                                }
+                            }, 1000);
                         } else if (this.worker) {
-                            this.worker.onmessage = testHandler;
-                            this.worker.postMessage(testMessage);
+                            this.worker.onmessage = readyHandler;
+                            // 尝试发送测试消息（如果Worker没有主动发送ready消息）
+                            setTimeout(() => {
+                                if (!this.isInitialized) {
+                                    this.worker.postMessage({
+                                        id: 'init-test',
+                                        type: 'analyze_keywords',
+                                        payload: { text: '测试', config: {}, options: { keywords: { num: 1 } } }
+                                    });
+                                }
+                            }, 1000);
                         } else {
                             clearTimeout(timeout);
                             reject(new Error('没有可用的Worker'));

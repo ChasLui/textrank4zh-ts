@@ -156,8 +156,30 @@
                 const workerTest = new Promise((resolve, reject) => {
                     worker.onmessage = (event) => {
                         log(`收到Worker响应: ${JSON.stringify(event.data)}`);
-                        worker.terminate();
-                        resolve(event.data);
+                        
+                        // 检查是否为准备就绪消息
+                        if (event.data.id === 'worker-ready') {
+                            log('Worker准备就绪，发送测试消息...');
+                            // 发送实际的分析任务
+                            const testMessage = {
+                                id: 'test-cors-fix',
+                                type: 'analyze_keywords',
+                                payload: {
+                                    text: '这是一个测试文本，用来验证Worker功能。',
+                                    config: { window: 2, lower: true },
+                                    options: { keywords: { num: 3 } }
+                                }
+                            };
+                            worker.postMessage(testMessage);
+                            return;
+                        }
+                        
+                        // 检查是否为分析结果
+                        if (event.data.id === 'test-cors-fix') {
+                            worker.terminate();
+                            resolve(event.data);
+                            return;
+                        }
                     };
 
                     worker.onerror = (error) => {
@@ -165,19 +187,7 @@
                         reject(new Error(`Worker错误: ${error.message}`));
                     };
 
-                    // 发送测试消息
-                    const testMessage = {
-                        id: 'test-cors-fix',
-                        type: 'analyze_keywords',
-                        payload: {
-                            text: '这是一个测试文本，用来验证Worker功能。',
-                            config: { window: 2, lower: true },
-                            options: { keywords: { num: 3 } }
-                        }
-                    };
-
-                    log(`发送测试消息: ${testMessage.id}`);
-                    worker.postMessage(testMessage);
+                    // 现在由worker-ready消息触发发送测试消息
                 });
 
                 // 等待结果或超时
