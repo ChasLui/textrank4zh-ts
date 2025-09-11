@@ -91,8 +91,8 @@
             async initialize(mode = 'auto') {
                 try {
                     if (mode === 'worker' || mode === 'auto') {
-                        // 使用同源Worker文件
-                        const workerUrl = '../../dist/index.worker.js';
+                        // 使用GitHub Pages绝对路径Worker文件
+                        const workerUrl = '/textrank4zh-ts/dist/index.worker.js';
                         this.worker = new Worker(workerUrl);
                         
                         // 设置超时测试

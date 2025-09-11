@@ -346,54 +346,87 @@
             }
 
             async initSharedWorker() {
-                try {
-                    // 使用GitHub Pages同源的SharedWorker文件
-                    const workerUrl = '../../dist/index.sharedworker.js';
-                    this.worker = new SharedWorker(workerUrl);
-                    this.sharedWorkerPort = this.worker.port;
-                    
-                    this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
-                    this.sharedWorkerPort.onerror = this.handleError.bind(this);
-                    this.sharedWorkerPort.start();
-                    this.connectionCount++;
-                    
-                    await this.waitForWorkerReady();
-                } catch (error) {
-                    console.warn('SharedWorker初始化失败，尝试相对路径:', error);
-                    // 降级到其他相对路径
+                const workerPaths = [
+                    '/textrank4zh-ts/dist/index.sharedworker.js',  // GitHub Pages绝对路径
+                    '../../dist/index.sharedworker.js',           // 相对路径
+                    './dist/index.sharedworker.js',               // 当前目录
+                    '../dist/index.sharedworker.js'               // 上级目录
+                ];
+
+                for (let i = 0; i < workerPaths.length; i++) {
                     try {
-                        this.worker = new SharedWorker('../dist/index.sharedworker.js');
+                        const workerUrl = workerPaths[i];
+                        console.log(`尝试SharedWorker路径 ${i + 1}/${workerPaths.length}: ${workerUrl}`);
+                        
+                        this.worker = new SharedWorker(workerUrl);
                         this.sharedWorkerPort = this.worker.port;
+                        
                         this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
                         this.sharedWorkerPort.onerror = this.handleError.bind(this);
                         this.sharedWorkerPort.start();
                         this.connectionCount++;
+                        
                         await this.waitForWorkerReady();
-                    } catch (localError) {
-                        throw new Error(`SharedWorker加载失败: ${localError.message}`);
+                        console.log(`SharedWorker初始化成功，使用路径: ${workerUrl}`);
+                        return; // 成功则退出
+                        
+                    } catch (error) {
+                        console.warn(`SharedWorker路径 ${workerPaths[i]} 失败:`, error);
+                        // 清理失败的worker
+                        if (this.worker) {
+                            try {
+                                if (this.sharedWorkerPort) {
+                                    this.sharedWorkerPort.close();
+                                }
+                            } catch (e) { /* 忽略清理错误 */ }
+                            this.worker = null;
+                            this.sharedWorkerPort = null;
+                            this.connectionCount = 0;
+                        }
+                        
+                        // 如果是最后一个路径，抛出错误
+                        if (i === workerPaths.length - 1) {
+                            throw new Error(`所有SharedWorker路径都失败: ${error.message}`);
+                        }
                     }
                 }
             }
 
             async initDedicatedWorker() {
-                try {
-                    // 使用GitHub Pages同源的Worker文件
-                    const workerUrl = '../../dist/index.worker.js';
-                    this.worker = new Worker(workerUrl);
-                    this.worker.onmessage = this.handleMessage.bind(this);
-                    this.worker.onerror = this.handleError.bind(this);
-                    
-                    await this.waitForWorkerReady();
-                } catch (error) {
-                    console.warn('DedicatedWorker初始化失败，尝试相对路径:', error);
-                    // 降级到其他相对路径
+                const workerPaths = [
+                    '/textrank4zh-ts/dist/index.worker.js',  // GitHub Pages绝对路径
+                    '../../dist/index.worker.js',           // 相对路径
+                    './dist/index.worker.js',               // 当前目录
+                    '../dist/index.worker.js'               // 上级目录
+                ];
+
+                for (let i = 0; i < workerPaths.length; i++) {
                     try {
-                        this.worker = new Worker('../dist/index.worker.js');
+                        const workerUrl = workerPaths[i];
+                        console.log(`尝试DedicatedWorker路径 ${i + 1}/${workerPaths.length}: ${workerUrl}`);
+                        
+                        this.worker = new Worker(workerUrl);
                         this.worker.onmessage = this.handleMessage.bind(this);
                         this.worker.onerror = this.handleError.bind(this);
+                        
                         await this.waitForWorkerReady();
-                    } catch (localError) {
-                        throw new Error(`DedicatedWorker加载失败: ${localError.message}`);
+                        console.log(`DedicatedWorker初始化成功，使用路径: ${workerUrl}`);
+                        return; // 成功则退出
+                        
+                    } catch (error) {
+                        console.warn(`DedicatedWorker路径 ${workerPaths[i]} 失败:`, error);
+                        // 清理失败的worker
+                        if (this.worker) {
+                            try {
+                                this.worker.terminate();
+                            } catch (e) { /* 忽略清理错误 */ }
+                            this.worker = null;
+                        }
+                        
+                        // 如果是最后一个路径，抛出错误
+                        if (i === workerPaths.length - 1) {
+                            throw new Error(`所有DedicatedWorker路径都失败: ${error.message}`);
+                        }
                     }
                 }
             }
@@ -1103,8 +1136,8 @@
                     client = null;
                 }
 
-                // 创建新客户端（使用同源Worker文件）
-                client = new TextRankUniversalClient('../../dist/index.worker.js', {
+                // 创建新客户端（使用同源Worker文件，将在初始化时尝试多个路径）
+                client = new TextRankUniversalClient('/textrank4zh-ts/dist/index.worker.js', {
                     timeout: 30000,
                     maxConcurrent: 10,
                     preferredWorkerType: workerType,

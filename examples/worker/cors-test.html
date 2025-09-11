@@ -102,9 +102,9 @@
             try {
                 // 测试同源路径能否访问
                 const paths = [
-                    '../../dist/index.worker.js',
-                    '../../dist/index.sharedworker.js',
-                    '../../package.json'
+                    '/textrank4zh-ts/dist/index.worker.js',
+                    '/textrank4zh-ts/dist/index.sharedworker.js',
+                    '/textrank4zh-ts/package.json'
                 ];
 
                 let successCount = 0;
@@ -142,7 +142,7 @@
             updateTestResult('worker-test', 'pending', '正在测试Worker功能...');
 
             try {
-                const workerUrl = '../../dist/index.worker.js';
+                const workerUrl = '/textrank4zh-ts/dist/index.worker.js';
                 log(`创建Worker: ${workerUrl}`);
                 
                 const worker = new Worker(workerUrl);
@@ -225,7 +225,7 @@
         // 页面加载完成后显示当前URL信息
         window.addEventListener('load', () => {
             log(`当前页面: ${window.location.href}`);
-            log(`预期Worker路径: ${new URL('../../dist/index.worker.js', window.location.href).href}`);
+            log(`预期Worker路径: ${new URL('/textrank4zh-ts/dist/index.worker.js', window.location.href).href}`);
         });
     </script>
 </body>
