@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.2.2](https://github.com/ChasLui/textrank4zh-ts/compare/v0.1.2...v0.2.2) (2025-09-11)
+
+### Features
+
+* 添加WebWorker跨域修复验证页面 ([ddc5a60](https://github.com/ChasLui/textrank4zh-ts/commit/ddc5a60a948381c07bc509ad913dbdb2479efa2b))
+
+### Bug Fixes
+
+* 修复WebWorker跨域问题，使用同源Worker文件替代CDN ([3730842](https://github.com/ChasLui/textrank4zh-ts/commit/3730842e05b96db857dc38199134912a3609c005))
+* 解决Worker脚本路径问题，使用GitHub Pages绝对路径 ([77400fd](https://github.com/ChasLui/textrank4zh-ts/commit/77400fd5896df31eb4c4917bf37d3ca3b8296fa3))
+
 ## [0.1.2](https://github.com/ChasLui/textrank4zh-ts/compare/v0.1.1...v0.1.2) (2025-09-11)
 
 ### Features
