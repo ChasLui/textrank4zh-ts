@@ -27,7 +27,6 @@ export default defineBuildConfig([
     clean: false,
     rollup: {
       inlineDependencies: true,
-      external: [],
       output: {
         name: 'TextRank4ZH', // 全局变量名
         format: 'iife',
@@ -36,6 +35,9 @@ export default defineBuildConfig([
       },
     },
     externals: [],
+    replace: {
+      'process.env.NODE_ENV': '"production"'
+    }
   },
 
   // DedicatedWorker 构建 - 独立文件，便于复制使用

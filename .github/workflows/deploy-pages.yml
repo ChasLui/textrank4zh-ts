@@ -54,8 +54,8 @@ jobs:
       
       - name: Update examples to use npm CDN files
         run: |
-          # 更新浏览器示例使用npm CDN文件
-          sed -i 's|<script type="module" src="./demo.js"></script>|<script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js"></script><script src="./demo-cdn.js"></script>|g' _site/browser/index.html
+          # 更新浏览器示例使用npm CDN文件，并添加依赖实现
+          sed -i 's|<script type="module" src="./demo.js"></script>|<script>window.typescriptResult={Result:class Result{constructor(ok,value,error){this.ok=ok;this.value=value;this.error=error}static ok(value){return new this(true,value,null)}static error(error){return new this(false,null,error)}isOk(){return this.ok}isErr(){return !this.ok}},ok:(value)=>window.typescriptResult.Result.ok(value),err:(error)=>window.typescriptResult.Result.error(error)};</script><script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js"></script><script src="./demo-cdn.js"></script>|g' _site/browser/index.html
           
           # 更新构建使用示例使用npm CDN
           find _site/build-usage -name "*.html" -exec sed -i 's|\.\.\/\.\.\/dist\/index\.iife\.js|https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js|g' {} \;
@@ -69,6 +69,23 @@ jobs:
           cat > _site/browser/demo-cdn.js << 'EOF'
           // 使用 jsDelivr CDN 加载的 TextRank4ZH-TS 库 (IIFE版本，npm包)
           // CDN URL: https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js
+          
+          // 提供 typescript-result 兼容的全局实现
+          window.typescriptResult = {
+            Result: class Result {
+              constructor(ok, value, error) {
+                this.ok = ok;
+                this.value = value;
+                this.error = error;
+              }
+              static ok(value) { return new this(true, value, null); }
+              static error(error) { return new this(false, null, error); }
+              isOk() { return this.ok; }
+              isErr() { return !this.ok; }
+            },
+            ok: (value) => window.typescriptResult.Result.ok(value),
+            err: (error) => window.typescriptResult.Result.error(error)
+          };
           
           // 全局变量
           let keywordAnalyzer = null;
