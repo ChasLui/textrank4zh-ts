@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.1.2](https://github.com/ChasLui/textrank4zh-ts/compare/v0.1.1...v0.1.2) (2025-09-11)
+
+### Features
+
+* 添加简单测试示例以演示 TextRank4ZH-TS Worker 功能 ([45e4e39](https://github.com/ChasLui/textrank4zh-ts/commit/45e4e398ea2f92f0f04883992555a699c2361bd0))
+
+### Bug Fixes
+
+* 添加Worker调试测试页面以诊断GitHub Pages问题 ([06c5bbf](https://github.com/ChasLui/textrank4zh-ts/commit/06c5bbf6e9bf94557bbb4d2fffdb52180346c53b))
+
 ## [0.1.1](https://github.com/ChasLui/textrank4zh-ts/compare/v0.1.0...v0.1.1) (2025-09-11)
 
 ### Features

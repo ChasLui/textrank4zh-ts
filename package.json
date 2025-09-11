@@ -1,6 +1,6 @@
 {
   "name": "textrank4zh-ts",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "适用于中文文本关键词提取和摘要生成的 TextRank 算法 TypeScript 实现（兼容浏览器）",
   "type": "module",
   "main": "./dist/index.cjs",
