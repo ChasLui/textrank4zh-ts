@@ -55,7 +55,7 @@ jobs:
       - name: Update examples to use built files
         run: |
           # 更新浏览器示例使用实际构建的文件
-          sed -i 's|./demo.js|./demo-live.js|g' _site/browser/index.html
+          sed -i 's|<script type="module" src="./demo.js"></script>|<script src="../dist/index.iife.js"></script><script src="./demo-live.js"></script>|g' _site/browser/index.html
           
           # 更新 Worker 示例的路径
           find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-worker-standalone\.js|../dist/index.worker.js|g' {} \;
@@ -66,9 +66,9 @@ jobs:
       
       - name: Create live demo script
         run: |
-          cat > _site/browser/demo-live.js << \EOF
-          // 使用实际构建的 TextRank4ZH-TS 库
-          import { TextRankKeyword, TextRankSentence } from '../dist/index.mjs';
+          cat > _site/browser/demo-live.js << 'EOF'
+          // 使用实际构建的 TextRank4ZH-TS 库 (IIFE版本，避免模块路径问题)
+          // import { TextRankKeyword, TextRankSentence } from '../dist/index.mjs';
           
           // 全局变量
           let keywordAnalyzer = null;
@@ -76,22 +76,27 @@ jobs:
           
           // 示例文本
           const sampleTexts = [
-            `北京是中华人民共和国的首都，是全国政治中心、文化中心。上海是中华人民共和国直辖市，是中国最大的经济中心。深圳是中国改革开放的前沿城市，经济发展迅速。广州是广东省省会，是华南地区的经济中心。杭州是浙江省省会，以风景秀丽著称。`,
+            "北京是中华人民共和国的首都，是全国政治中心、文化中心。上海是中华人民共和国直辖市，是中国最大的经济中心。深圳是中国改革开放的前沿城市，经济发展迅速。广州是广东省省会，是华南地区的经济中心。杭州是浙江省省会，以风景秀丽著称。",
             
-            `人工智能技术在自然语言处理领域取得了重大突破。机器学习和深度学习推动了人工智能的快速发展。神经网络模型能够理解复杂的语言结构和语义信息。文本分析、语音识别、图像处理等应用场景不断涌现。未来人工智能将在更多领域发挥重要作用。`,
+            "人工智能技术在自然语言处理领域取得了重大突破。机器学习和深度学习推动了人工智能的快速发展。神经网络模型能够理解复杂的语言结构和语义信息。文本分析、语音识别、图像处理等应用场景不断涌现。未来人工智能将在更多领域发挥重要作用。",
             
-            `中国的教育事业蓬勃发展，各级各类学校办学条件不断改善。高等教育进入普及化发展阶段，教育质量稳步提升。职业教育体系日趋完善，为经济社会发展培养了大批技能人才。基础教育均衡发展，城乡教育差距逐步缩小。`
+            "中国的教育事业蓬勃发展，各级各类学校办学条件不断改善。高等教育进入普及化发展阶段，教育质量稳步提升。职业教育体系日趋完善，为经济社会发展培养了大批技能人才。基础教育均衡发展，城乡教育差距逐步缩小。"
           ];
           
           // 初始化
           window.addEventListener('DOMContentLoaded', function() {
             try {
-              keywordAnalyzer = new TextRankKeyword();
-              sentenceAnalyzer = new TextRankSentence();
-              console.log('TextRank4ZH-TS 已成功加载，使用实际构建版本');
+              // 使用IIFE版本的全局变量
+              var TextRank4ZH = window.TextRank4ZH;
+              if (!TextRank4ZH) {
+                throw new Error('TextRank4ZH 库未正确加载');
+              }
+              keywordAnalyzer = new TextRank4ZH.TextRankKeyword();
+              sentenceAnalyzer = new TextRank4ZH.TextRankSentence();
+              console.log('TextRank4ZH-TS 已成功加载，使用IIFE构建版本');
             } catch (error) {
               console.error('TextRank4ZH-TS 加载失败:', error);
-              showError('库加载失败，请检查网络连接或刷新页面重试');
+              showError('库加载失败，请检查网络连接或刷新页面重试。错误：' + error.message);
             }
           });
           
@@ -184,46 +189,45 @@ jobs:
           // 显示结果
           function displayResults(results) {
             // 显示统计信息
-            const statsHtml = `
-              <div class="stat-item">
-                <span class="stat-number">${results.stats.textLength}</span>
-                <div class="stat-label">文本字符数</div>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">${results.stats.keywordsCount}</span>
-                <div class="stat-label">关键词数量</div>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">${results.stats.keyphrasesCount}</span>
-                <div class="stat-label">关键短语数量</div>
-              </div>
-              <div class="stat-item">
-                <span class="stat-number">${results.stats.sentencesCount}</span>
-                <div class="stat-label">重要句子数量</div>
-              </div>
-            `;
+            const statsHtml = 
+              '<div class="stat-item">' +
+                '<span class="stat-number">' + results.stats.textLength + '</span>' +
+                '<div class="stat-label">文本字符数</div>' +
+              '</div>' +
+              '<div class="stat-item">' +
+                '<span class="stat-number">' + results.stats.keywordsCount + '</span>' +
+                '<div class="stat-label">关键词数量</div>' +
+              '</div>' +
+              '<div class="stat-item">' +
+                '<span class="stat-number">' + results.stats.keyphrasesCount + '</span>' +
+                '<div class="stat-label">关键短语数量</div>' +
+              '</div>' +
+              '<div class="stat-item">' +
+                '<span class="stat-number">' + results.stats.sentencesCount + '</span>' +
+                '<div class="stat-label">重要句子数量</div>' +
+              '</div>';
             document.getElementById('textStats').innerHTML = statsHtml;
           
             // 显示关键词
             const keywordsHtml = results.keywords
-              .map(k => `<span class="keyword-item">${k.word} (${k.weight.toFixed(3)})</span>`)
+              .map(function(k) { return '<span class="keyword-item">' + k.word + ' (' + k.weight.toFixed(3) + ')</span>'; })
               .join('');
             document.getElementById('keywordsList').innerHTML = keywordsHtml;
           
             // 显示关键短语
             const keyphrasesHtml = results.keyphrases
-              .map(p => `<span class="keyword-item">${p}</span>`)
+              .map(function(p) { return '<span class="keyword-item">' + p + '</span>'; })
               .join('');
             document.getElementById('keyphrasesList').innerHTML = keyphrasesHtml || '<span class="keyword-item">未找到关键短语</span>';
           
             // 显示重要句子
             const sentencesHtml = results.sentences
-              .map(s => `
-                <div class="sentence-item">
-                  <div class="sentence-meta">权重: ${s.weight.toFixed(3)} | 位置: ${s.index + 1}</div>
-                  <div>${s.sentence}</div>
-                </div>
-              `)
+              .map(function(s) {
+                return '<div class="sentence-item">' +
+                  '<div class="sentence-meta">权重: ' + s.weight.toFixed(3) + ' | 位置: ' + (s.index + 1) + '</div>' +
+                  '<div>' + s.sentence + '</div>' +
+                '</div>';
+              })
               .join('');
             document.getElementById('sentencesList').innerHTML = sentencesHtml;
           
