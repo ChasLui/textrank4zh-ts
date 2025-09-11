@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.2.3](https://github.com/ChasLui/textrank4zh-ts/compare/v0.2.2...v0.2.3) (2025-09-11)
+
+### Bug Fixes
+
+* ci ([82f2dcf](https://github.com/ChasLui/textrank4zh-ts/commit/82f2dcf688a9c1155105b7995af453a0a289c939))
+
 ## [0.2.2](https://github.com/ChasLui/textrank4zh-ts/compare/v0.1.2...v0.2.2) (2025-09-11)
 
 ### Features
