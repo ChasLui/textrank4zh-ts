@@ -5,7 +5,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # Production build
-dist/
+# 注意：dist/ 不再忽略 —— 构建产物需提交进版本库，
+# 供 jsDelivr GitHub 源（cdn.jsdelivr.net/gh/...）按 tag 分发
 build/
 
 # Runtime data
@@ -74,7 +75,6 @@ jspm_packages/
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/

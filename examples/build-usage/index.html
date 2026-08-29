@@ -319,7 +319,7 @@
                         <code>import { TextRankKeyword, TextRankSentence } from 'textrank4zh-ts';
 
 // 或从 CDN 导入
-import { TextRankKeyword } from 'https://unpkg.com/textrank4zh-ts@latest/dist/index.mjs';
+import { TextRankKeyword } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
 
 const tr4w = new TextRankKeyword();
 const result = tr4w.analyze(text);</code>
@@ -400,10 +400,10 @@ if (result.ok) {
                 </div>
                 
                 <div class="code-section">
-                    <h4>unpkg CDN:</h4>
+                    <h4>jsDelivr CDN (ES Module):</h4>
                     <div class="code-block">
                         <code>&lt;script type="module"&gt;
-  import { TextRankKeyword } from 'https://unpkg.com/textrank4zh-ts@latest/dist/index.mjs';
+  import { TextRankKeyword } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
   
   const tr4w = new TextRankKeyword();
   // 使用库...
@@ -412,20 +412,15 @@ if (result.ok) {
                 </div>
                 
                 <div class="code-section">
-                    <h4>jsDelivr CDN:</h4>
+                    <h4>jsDelivr CDN (IIFE):</h4>
                     <div class="code-block">
-                        <code>&lt;script type="module"&gt;
-  import { TextRankKeyword } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.mjs';
-&lt;/script&gt;
-
-&lt;!-- IIFE 版本 --&gt;
-&lt;script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js"&gt;&lt;/script&gt;</code>
+                        <code>&lt;script src="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js"&gt;&lt;/script&gt;</code>
                     </div>
                 </div>
                 
                 <div class="demo-buttons">
                     <a href="./cdn-example.html" class="demo-button">查看演示</a>
-                    <a href="https://unpkg.com/textrank4zh-ts@latest/" class="demo-button secondary">浏览文件</a>
+                    <a href="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/" class="demo-button secondary">浏览文件</a>
                 </div>
             </div>
         </div>

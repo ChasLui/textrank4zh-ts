@@ -86,8 +86,8 @@ cp dist/index.worker.js public/
 cp dist/index.sharedworker.js public/
 
 # 或者从 CDN 使用
-# https://unpkg.com/textrank4zh-ts/dist/index.worker.js
-# https://unpkg.com/textrank4zh-ts/dist/index.sharedworker.js
+# https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.worker.js
+# https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.sharedworker.js
 ```
 
 使用时无需担心依赖问题：
@@ -123,7 +123,7 @@ const client = new TextRankUniversalClient('/index.worker.js', {
 
 ### 传统网页 (无构建工具)
 ```html
-<script src="https://unpkg.com/textrank4zh-ts/dist/index.iife.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js"></script>
 <script>
     const { TextRankKeyword, mainThreadScheduler } = TextRank4ZH;
     

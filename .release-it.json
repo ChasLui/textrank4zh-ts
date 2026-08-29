@@ -3,7 +3,9 @@
     "commitMessage": "chore: release v${version}",
     "tagName": "v${version}",
     "pushArgs": ["--follow-tags"],
-    "requireBranch": "main"
+    "requireBranch": "main",
+    "requireCleanWorkingDir": false,
+    "addUntrackedFiles": true
   },
   "github": {
     "release": true,
@@ -21,7 +23,8 @@
     ],
     "before:release": [
       "pnpm run clean",
-      "pnpm run build"
+      "pnpm run build",
+      "git add -A dist"
     ]
   },
   "plugins": {

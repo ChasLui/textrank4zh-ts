@@ -1,5 +1,5 @@
 // 使用 jsDelivr CDN 加载的 TextRank4ZH-TS 库 (IIFE版本，npm包)
-// CDN URL: https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js
+// CDN URL: https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js
 
 // 提供 typescript-result 兼容的全局实现
 window.typescriptResult = {
