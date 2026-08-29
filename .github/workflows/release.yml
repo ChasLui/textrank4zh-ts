@@ -93,12 +93,13 @@ jobs:
           install: false
           cache: true
 
+      # 不设 registry-url：它只会往 .npmrc 写 _authToken=${NODE_AUTH_TOKEN}，
+      # 而 OIDC 不使用该变量，留下的空 token 反而会让认证失败。
       - name: Setup Node.js
         uses: actions/setup-node@v7
         with:
           node-version: '24.20.0'
           cache: 'pnpm'
-          registry-url: 'https://registry.npmjs.org'
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
@@ -124,10 +125,12 @@ jobs:
       # check-release 只负责决定「要不要发」，不再决定「发哪一级」——否则一条 fix
       # 会把累积的 feat 降级成 patch。
       # npm 认证走 Trusted Publisher (OIDC)，不再需要 NPM_TOKEN。
+      # --npm.skipChecks 跳过 publish 前的 npm whoami：OIDC 的凭证是在 publish
+      # 那一刻才换取的，whoami 阶段尚无凭证，检查必然失败。
       - name: Release
         run: |
           echo "📝 Triggered by commit: ${{ needs.check-release.outputs.commit-message }}"
-          pnpm exec release-it --ci
+          pnpm exec release-it --ci --npm.skipChecks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
