@@ -24,22 +24,15 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm & Node.js
+        uses: pnpm/setup@v2
         with:
-          version: 10.15.0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.18.0'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
       - name: Build project
         run: pnpm run build
       
@@ -55,20 +48,20 @@ jobs:
       - name: Update examples to use npm CDN files
         run: |
           # 更新浏览器示例使用npm CDN文件，并添加依赖实现
-          sed -i 's|<script type="module" src="./demo.js"></script>|<script>window.typescriptResult={Result:class Result{constructor(ok,value,error){this.ok=ok;this.value=value;this.error=error}static ok(value){return new this(true,value,null)}static error(error){return new this(false,null,error)}isOk(){return this.ok}isErr(){return !this.ok}},ok:(value)=>window.typescriptResult.Result.ok(value),err:(error)=>window.typescriptResult.Result.error(error)};</script><script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js"></script><script src="./demo-cdn.js"></script>|g' _site/browser/index.html
+          sed -i 's|<script type="module" src="./demo.js"></script>|<script>window.typescriptResult={Result:class Result{constructor(ok,value,error){this.ok=ok;this.value=value;this.error=error}static ok(value){return new this(true,value,null)}static error(error){return new this(false,null,error)}isOk(){return this.ok}isErr(){return !this.ok}},ok:(value)=>window.typescriptResult.Result.ok(value),err:(error)=>window.typescriptResult.Result.error(error)};</script><script src="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js"></script><script src="./demo-cdn.js"></script>|g' _site/browser/index.html
           
           # 更新构建使用示例使用npm CDN
-          find _site/build-usage -name "*.html" -exec sed -i 's|\.\.\/\.\.\/dist\/index\.iife\.js|https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js|g' {} \;
+          find _site/build-usage -name "*.html" -exec sed -i 's|\.\.\/\.\.\/dist\/index\.iife\.js|https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js|g' {} \;
           
           # 更新 Worker 示例的npm CDN路径
-          find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-worker-standalone\.js|https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.worker.js|g' {} \;
-          find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-sharedworker-standalone\.js|https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.sharedworker.js|g' {} \;
+          find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-worker-standalone\.js|https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.worker.js|g' {} \;
+          find _site/worker -name "*.html" -exec sed -i 's|\.\/textrank-sharedworker-standalone\.js|https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.sharedworker.js|g' {} \;
       
       - name: Create CDN demo script
         run: |
           cat > _site/browser/demo-cdn.js << 'EOF'
           // 使用 jsDelivr CDN 加载的 TextRank4ZH-TS 库 (IIFE版本，npm包)
-          // CDN URL: https://cdn.jsdelivr.net/npm/textrank4zh-ts@latest/dist/index.iife.js
+          // CDN URL: https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js
           
           // 提供 typescript-result 兼容的全局实现
           window.typescriptResult = {

@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "target": "ES2020",
-    "module": "commonjs",
+    "module": "preserve",
     "lib": ["ES2020", "DOM", "WebWorker"],
     "outDir": "./dist",
     "rootDir": "./src",
@@ -16,20 +16,29 @@
     "noImplicitThis": true,
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
-    "exactOptionalPropertyTypes": false,
+    // 索引访问返回 T | undefined，强制处理越界（Rust 的 Option<&T> 语义）
+    "noUncheckedIndexedAccess": true,
+    // 区分「属性缺失」与「属性值为 undefined」
+    "exactOptionalPropertyTypes": true,
     
     // 额外的严格检查
-    "noUnusedLocals": false,
-    "noUnusedParameters": false,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
     "noImplicitOverride": true,
-    "noPropertyAccessFromIndexSignature": false,
+    "noPropertyAccessFromIndexSignature": true,
+    "allowUnreachableCode": false,
+    "allowUnusedLabels": false,
+    // 类型导入必须显式标注，保证单文件可擦除转译（Vite/rolldown 逐文件转译的前提）
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
     
     // 模块相关
     "esModuleInterop": true,
     "allowSyntheticDefaultImports": true,
     "resolveJsonModule": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
+    // TS6/7 起 types 默认为 []，不显式声明会丢失 Node 全局（process 等）
+    "types": ["node"],
     
     // 其他配置
     "skipLibCheck": true,

@@ -15,30 +15,26 @@ jobs:
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm & Node.js
+        uses: pnpm/setup@v2
         with:
-          version: 10.15.0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.18.0'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
-      - name: Run ESLint
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
+      - name: Run oxlint
         run: pnpm run lint
-      
+
+      - name: Check formatting
+        run: pnpm run format:check
+
       - name: Check TypeScript types
-        run: npx tsc --noEmit
+        run: pnpm run typecheck
 
   # 测试和覆盖率
   test:
@@ -46,34 +42,27 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [18.x, 20.x, 22.x]
-    
+        node: [22, 24]
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm & Node.js ${{ matrix.node }}
+        uses: pnpm/setup@v2
         with:
-          version: 10.15.0
-      
-      - name: Setup Node.js ${{ matrix.node-version }}
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ matrix.node-version }}
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
+          runtime: node@${{ matrix.node }}
+          cache: true
+          require-lockfile: true
+
       - name: Run tests with coverage
         run: pnpm run test:coverage
-      
+
       - name: Upload coverage to Codecov
-        if: matrix.node-version == '22.x'
-        uses: codecov/codecov-action@v4
+        if: matrix.node == 24
+        uses: codecov/codecov-action@v7
         with:
-          file: ./coverage/lcov.info
+          files: ./coverage/lcov.info
           flags: unittests
           name: codecov-umbrella
           fail_ci_if_error: false
@@ -85,28 +74,21 @@ jobs:
     name: Build Test
     runs-on: ubuntu-latest
     needs: [lint]
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm & Node.js
+        uses: pnpm/setup@v2
         with:
-          version: 10.15.0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.18.0'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
       - name: Build project
         run: pnpm run build
-      
+
       - name: Check build outputs
         run: |
           ls -la dist/
@@ -115,9 +97,9 @@ jobs:
           echo "✅ IIFE build:" && ls -la dist/index.iife.js
           echo "✅ Worker builds:" && ls -la dist/index.worker.js dist/index.sharedworker.js
           echo "✅ Type definitions:" && ls -la dist/index.d.ts
-      
+
       - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: build-artifacts
           path: dist/
@@ -128,41 +110,34 @@ jobs:
     name: Browser Compatibility
     runs-on: ubuntu-latest
     needs: [build]
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: actions/checkout@v7
+
+      - name: Setup pnpm & Node.js
+        uses: pnpm/setup@v2
         with:
-          version: 10.15.0
-      
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '22.18.0'
-          cache: 'pnpm'
-      
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      
+          runtime: node@24
+          cache: true
+          require-lockfile: true
+
       - name: Download build artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: build-artifacts
           path: dist/
-      
+
       - name: Test browser examples
         run: |
           # 启动HTTP服务器测试浏览器示例
           pnpm run serve &
           SERVER_PID=$!
           sleep 5
-          
+
           # 简单检查示例页面是否可访问
           curl -f http://localhost:8000/examples/browser/ || echo "Browser example server check"
-          
+
           # 清理
           kill $SERVER_PID 2>/dev/null || true
 
@@ -172,26 +147,27 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test, build]
     if: github.ref == 'refs/heads/main'
-    
+
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
-      
+        uses: actions/checkout@v7
+
       - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/setup@v2
         with:
-          version: 10.15.0
-      
+          install: false
+          cache: true
+
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v7
         with:
-          node-version: '22.18.0'
+          node-version: '24.20.0'
           cache: 'pnpm'
           registry-url: 'https://registry.npmjs.org'
-      
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-      
+
       - name: Test release workflow (dry run)
         run: pnpm run release:dry
         env:
@@ -205,7 +181,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [lint, test, build, browser-test]
     if: always()
-    
+
     steps:
       - name: Check all jobs status
         run: |
