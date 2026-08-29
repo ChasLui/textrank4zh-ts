@@ -2195,9 +2195,10 @@ async function withTimeout(promise, timeoutMs, context) {
 */
 var WordSegmentation = class {
 	constructor(config = {}) {
-		const { stopWords, allowSpeechTags = DEFAULT_CONFIG.ALLOW_SPEECH_TAGS } = config;
+		const { stopWords, allowSpeechTags = DEFAULT_CONFIG.ALLOW_SPEECH_TAGS, tokenizer } = config;
 		this.allowSpeechTags = new Set(allowSpeechTags);
 		this.stopWords = this.loadStopWords(stopWords);
+		this.customTokenizer = tokenizer;
 		if (!this.initJieba().ok) debug("分词器初始化失败，已使用fallback分词器");
 	}
 	/**
@@ -2205,6 +2206,18 @@ var WordSegmentation = class {
 	*/
 	initJieba() {
 		if (!safeSync(() => {
+			const custom = this.customTokenizer;
+			if (custom) {
+				this.jieba = {
+					cut: custom,
+					tag: (text) => custom(text).map((word) => ({
+						word,
+						pos: "n"
+					}))
+				};
+				debug("使用注入的自定义分词器");
+				return;
+			}
 			this.jieba = jieba;
 			debug("使用内置轻量级分词器");
 		}, ErrorType.INITIALIZATION_ERROR, { component: "jieba" }).ok) {

@@ -208,6 +208,7 @@ export declare interface SegmentationConfig {
     stopWords?: string[];
     allowSpeechTags?: string[];
     delimiters?: string[];
+    tokenizer?: ((text: string) => string[]) | undefined;
 }
 
 export declare interface SegmentationResult {
@@ -460,6 +461,7 @@ export declare class WordSegmentation {
     private stopWords;
     private allowSpeechTags;
     private jieba;
+    private customTokenizer;
     constructor(config?: SegmentationConfig);
     private initJieba;
     private createFallbackSegmenter;

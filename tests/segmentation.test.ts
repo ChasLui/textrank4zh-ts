@@ -143,3 +143,38 @@ describe('Segmentation', () => {
     expect(result.wordsAllFilters).toHaveLength(0);
   });
 });
+
+describe('自定义分词器注入', () => {
+  const text = '今天去了新开的咖啡店，服务员态度很好。';
+
+  test('注入 tokenizer 后应使用它而非内置词表', () => {
+    const calls: string[] = [];
+    const tokenizer = (input: string): string[] => {
+      calls.push(input);
+      return ['自定义', '分词', '结果'];
+    };
+
+    const result = new Segmentation({ tokenizer }).segment(text);
+
+    expect(calls.length).toBeGreaterThan(0);
+    expect(result.wordsNoFilter[0]).toEqual(['自定义', '分词', '结果']);
+  });
+
+  test('未注入时回退到内置分词器', () => {
+    const result = new Segmentation().segment(text);
+    const words = result.wordsNoFilter[0];
+
+    expect(words).toBeDefined();
+    expect(words?.length).toBeGreaterThan(0);
+    // 内置词表覆盖有限，此处只验证仍能产出分词结果
+    expect(words?.join('')).toContain('咖');
+  });
+
+  test('注入的分词器结果不应被词性过滤误删', () => {
+    // 自定义分词器不提供词性，实现内部统一标为 'n'，需确保 allowSpeechTags 过滤后仍有词
+    const tokenizer = (): string[] => ['咖啡店', '服务员', '态度'];
+    const result = new Segmentation({ tokenizer }).segment(text);
+
+    expect(result.wordsAllFilters[0]).toEqual(['咖啡店', '服务员', '态度']);
+  });
+});
