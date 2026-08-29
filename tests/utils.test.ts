@@ -121,9 +121,10 @@ describe('pageRank', () => {
     const result2 = pageRank(matrix, { alpha: 0.9 });
 
     // 对于更复杂的图，不同的alpha值应该产生不同的分数分布
-    const hasSignificantDifference = result1.scores.some(
-      (score, i) => Math.abs(score - result2.scores[i]) > 0.001
-    );
+    const hasSignificantDifference = result1.scores.some((score, i) => {
+      const other = result2.scores[i];
+      return other !== undefined && Math.abs(score - other) > 0.001;
+    });
     expect(hasSignificantDifference).toBe(true);
   });
 });
@@ -173,17 +174,21 @@ describe('buildSentenceGraph', () => {
     const adjacencyMatrix = buildSentenceGraph(sentences, words);
 
     expect(adjacencyMatrix.length).toBe(3);
-    expect(adjacencyMatrix[0].length).toBe(3);
+    expect(adjacencyMatrix[0]?.length).toBe(3);
 
     // 对角线应该是自相似度（通常较高）
     for (let i = 0; i < 3; i++) {
-      expect(adjacencyMatrix[i][i]).toBeGreaterThan(0);
+      const row = adjacencyMatrix[i];
+      expect(row).toBeDefined();
+      expect(row?.[i]).toBeGreaterThan(0);
     }
 
     // 矩阵应该是对称的
     for (let i = 0; i < 3; i++) {
+      const row = adjacencyMatrix[i];
+      expect(row).toBeDefined();
       for (let j = 0; j < 3; j++) {
-        expect(adjacencyMatrix[i][j]).toEqual(adjacencyMatrix[j][i]);
+        expect(row?.[j]).toEqual(adjacencyMatrix[j]?.[i]);
       }
     }
   });
@@ -195,8 +200,8 @@ describe('buildSentenceGraph', () => {
     const customSimilarity = () => 0.5;
     const adjacencyMatrix = buildSentenceGraph(sentences, words, customSimilarity);
 
-    expect(adjacencyMatrix[0][1]).toBe(0.5);
-    expect(adjacencyMatrix[1][0]).toBe(0.5);
+    expect(adjacencyMatrix[0]?.[1]).toBe(0.5);
+    expect(adjacencyMatrix[1]?.[0]).toBe(0.5);
   });
 });
 
@@ -223,7 +228,13 @@ describe('sortWords', () => {
 
     // 检查排序
     for (let i = 1; i < keywords.length; i++) {
-      expect(keywords[i - 1].weight).toBeGreaterThanOrEqual(keywords[i].weight);
+      const prev = keywords[i - 1];
+      const curr = keywords[i];
+      expect(prev).toBeDefined();
+      expect(curr).toBeDefined();
+      if (prev && curr) {
+        expect(prev.weight).toBeGreaterThanOrEqual(curr.weight);
+      }
     }
   });
 });
@@ -240,7 +251,7 @@ describe('sortSentences', () => {
     const sentenceItems = sortSentences(sentences, words);
 
     expect(sentenceItems.length).toBe(3);
-    sentenceItems.forEach((item, index) => {
+    sentenceItems.forEach((item) => {
       expect(item).toHaveProperty('index');
       expect(item).toHaveProperty('sentence');
       expect(item).toHaveProperty('weight');
@@ -249,7 +260,13 @@ describe('sortSentences', () => {
 
     // 检查排序
     for (let i = 1; i < sentenceItems.length; i++) {
-      expect(sentenceItems[i - 1].weight).toBeGreaterThanOrEqual(sentenceItems[i].weight);
+      const prev = sentenceItems[i - 1];
+      const curr = sentenceItems[i];
+      expect(prev).toBeDefined();
+      expect(curr).toBeDefined();
+      if (prev && curr) {
+        expect(prev.weight).toBeGreaterThanOrEqual(curr.weight);
+      }
     }
   });
 });

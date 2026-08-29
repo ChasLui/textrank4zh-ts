@@ -1,7 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TextRankKeyword, TextRankSentence, AsyncAnalysisExecutor } from '../src';
 import type { AnalysisProgress, ProgressCallback } from '../src/types';
-import { AsyncTextRankKeywordConfig, AsyncTextRankSentenceConfig } from '../src/types';
 import { getTestText, expectResultErr } from './test-helpers';
 
 describe('异步分析功能测试', () => {

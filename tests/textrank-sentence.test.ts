@@ -1,5 +1,4 @@
 import { TextRankSentence } from '../src/core/textrank-sentence';
-import { SentenceItem } from '../src/types';
 
 describe('TextRankSentence', () => {
   let textRankSentence: TextRankSentence;
@@ -40,7 +39,13 @@ describe('TextRankSentence', () => {
     const keySentences = textRankSentence.getKeySentences(5);
 
     for (let i = 1; i < keySentences.length; i++) {
-      expect(keySentences[i - 1].weight).toBeGreaterThanOrEqual(keySentences[i].weight);
+      const prev = keySentences[i - 1];
+      const current = keySentences[i];
+      expect(prev).toBeDefined();
+      expect(current).toBeDefined();
+      if (prev && current) {
+        expect(prev.weight).toBeGreaterThanOrEqual(current.weight);
+      }
     }
   });
 
@@ -88,10 +93,6 @@ describe('TextRankSentence', () => {
 
     textRankSentence.analyze(sampleText, { source: 'all_filters' });
     const sentencesAllFilters = textRankSentence.getKeySentences(3);
-
-    // 不同词源可能产生不同的权重分布
-    const weightsNoStopWords = sentencesNoStopWords.map((s) => s.weight);
-    const weightsAllFilters = sentencesAllFilters.map((s) => s.weight);
 
     // 由于轻量级分词器的限制，不同词源可能产生相同权重，这是可接受的
     // 至少应该能正常运行并产生结果

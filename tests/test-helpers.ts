@@ -10,9 +10,10 @@ import type { TextRankResult, TextRankError } from '../src/types';
  */
 export function expectResultOk<T>(
   result: TextRankResult<T>
-  // 断言目标必须是 TextRankResult 的子类型。写成结构化字面量 { ok: true; value: T }
-  // 会触发 TS2677 —— typescript-result 的 Result 是带内部成员的类实例，字面量不是它的子类型
-): asserts result is Result.Ok<T> {
+  // 不用 asserts 签名：Result.Ok<T> 实为 Result<T, never>，不是 Result<T, TextRankError>
+  // 的子类型，会触发 TS2677。此处的收窄无调用方依赖（仅 safeAnalyze 使用且不读 value），
+  // 需要收窄的场景请直接用 result.isOk()。
+): void {
   expect(result.ok).toBe(true);
   if (result.isError()) {
     throw new Error(`Expected Ok, got Err: ${result.error.message}`);

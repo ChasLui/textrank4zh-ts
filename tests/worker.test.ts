@@ -10,7 +10,7 @@ describe('TextRank Web Worker', () => {
     // 模拟 Worker 环境
     // Vitest 4: mocks called with `new` are constructed, so an arrow function
     // would throw "<anonymous> is not a constructor"
-    global.Worker = vi.fn().mockImplementation(function (script: string) {
+    global.Worker = vi.fn().mockImplementation(function (_script: string) {
       const worker = {
         postMessage: vi.fn(),
         terminate: vi.fn(),
@@ -239,7 +239,7 @@ describe('TextRank Web Worker', () => {
         '第三段测试文本，验证并行处理。',
       ];
 
-      const results = texts.map((text, i) => ({ duration: 100 + i * 10 }));
+      const results = texts.map((_text, i) => ({ duration: 100 + i * 10 }));
 
       expect(results).toHaveLength(3);
 
