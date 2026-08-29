@@ -15,33 +15,34 @@ describe('真实业务场景测试', () => {
 
     beforeAll(async () => {
       tr4w = new TextRankKeyword();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('应该提取产品核心特性关键词', () => {
       tr4w.analyze(productDescription, {
         lower: false, // 保持原始大小写，如"5G"
         window: 2,
-        minWordLen: 1
+        minWordLen: 1,
       });
 
       const keywords = tr4w.getKeywords(12, 1);
-      const keywordTexts = keywords.map(k => k.word);
+      const keywordTexts = keywords.map((k) => k.word);
 
       // 应该包含技术规格相关词汇（更宽松的匹配）
-      const hasTechSpecs = keywordTexts.some(word => 
-        word.includes('手机') || 
-        word.includes('芯片') || 
-        word.includes('摄像') ||
-        word.includes('显示') ||
-        word.includes('电池') ||
-        word.includes('像素') ||
-        word.includes('功能') ||
-        word.includes('技术') ||
-        word.includes('支持') ||
-        word.includes('内存') ||
-        word.includes('存储') ||
-        /\d+/.test(word) // 包含数字的技术参数
+      const hasTechSpecs = keywordTexts.some(
+        (word) =>
+          word.includes('手机') ||
+          word.includes('芯片') ||
+          word.includes('摄像') ||
+          word.includes('显示') ||
+          word.includes('电池') ||
+          word.includes('像素') ||
+          word.includes('功能') ||
+          word.includes('技术') ||
+          word.includes('支持') ||
+          word.includes('内存') ||
+          word.includes('存储') ||
+          /\d+/.test(word) // 包含数字的技术参数
       );
 
       expect(hasTechSpecs).toBe(true);
@@ -53,7 +54,7 @@ describe('真实业务场景测试', () => {
       const keyphrases = tr4w.getKeyphrases(15, 1);
 
       expect(keyphrases.length).toBeGreaterThan(0);
-      keyphrases.forEach(phrase => {
+      keyphrases.forEach((phrase) => {
         expect(phrase.length).toBeGreaterThan(1);
       });
     });
@@ -73,13 +74,13 @@ describe('真实业务场景测试', () => {
 
     beforeAll(async () => {
       tr4s = new TextRankSentence();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('应该生成准确的新闻摘要', () => {
       tr4s.analyze(newsArticle, {
         lower: true,
-        source: 'all_filters'
+        source: 'all_filters',
       });
 
       const keySentences = tr4s.getKeySentences(2);
@@ -112,7 +113,7 @@ describe('真实业务场景测试', () => {
     beforeAll(async () => {
       tr4w = new TextRankKeyword();
       tr4s = new TextRankSentence();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('应该提取学术关键词', () => {
@@ -120,22 +121,23 @@ describe('真实业务场景测试', () => {
         lower: true,
         window: 3, // 学术文本用较大窗口
         vertexSource: 'all_filters',
-        edgeSource: 'no_stop_words'
+        edgeSource: 'no_stop_words',
       });
 
       const keywords = tr4w.getKeywords(10, 1); // 改为最小长度1，适应单字分词
-      const keywordTexts = keywords.map(k => k.word);
+      const keywordTexts = keywords.map((k) => k.word);
 
       // 应该包含学术相关字符（适应轻量级分词器）
-      const hasAcademicTerms = keywordTexts.some(word =>
-        word.includes('学') ||
-        word.includes('网') ||
-        word.includes('模') ||
-        word.includes('数') ||
-        word.includes('方') ||
-        word.includes('习') ||
-        word.includes('络') ||
-        word.includes('型')
+      const hasAcademicTerms = keywordTexts.some(
+        (word) =>
+          word.includes('学') ||
+          word.includes('网') ||
+          word.includes('模') ||
+          word.includes('数') ||
+          word.includes('方') ||
+          word.includes('习') ||
+          word.includes('络') ||
+          word.includes('型')
       );
 
       expect(hasAcademicTerms).toBe(true);
@@ -145,7 +147,7 @@ describe('真实业务场景测试', () => {
     it('应该生成学术摘要', () => {
       tr4s.analyze(academicText, {
         lower: true,
-        source: 'all_filters'
+        source: 'all_filters',
       });
 
       const keySentences = tr4s.getKeySentences(3);
@@ -170,25 +172,26 @@ describe('真实业务场景测试', () => {
 
     beforeAll(async () => {
       tr4w = new TextRankKeyword();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('应该识别情感和体验关键词', () => {
       tr4w.analyze(socialMediaPost, {
         lower: true,
-        window: 2
+        window: 2,
       });
 
       const keywords = tr4w.getKeywords(8, 1);
-      const keywordTexts = keywords.map(k => k.word);
+      const keywordTexts = keywords.map((k) => k.word);
 
       // 应该包含体验相关词汇
-      const hasExperienceWords = keywordTexts.some(word =>
-        word.includes('咖啡') ||
-        word.includes('味道') ||
-        word.includes('服务') ||
-        word.includes('环境') ||
-        word.includes('推荐')
+      const hasExperienceWords = keywordTexts.some(
+        (word) =>
+          word.includes('咖啡') ||
+          word.includes('味道') ||
+          word.includes('服务') ||
+          word.includes('环境') ||
+          word.includes('推荐')
       );
 
       expect(keywords.length).toBeGreaterThan(0);
@@ -200,14 +203,14 @@ describe('真实业务场景测试', () => {
       tech: '人工智能和机器学习技术正在改变软件开发的方式。深度学习框架如TensorFlow和PyTorch提供了强大的工具。',
       finance: '央行宣布降准0.5个百分点，释放流动性约1.2万亿元。股市应声上涨，银行板块涨幅明显。',
       health: '新型冠状病毒疫苗接种工作全面推进。医疗机构加强防控措施，确保患者和医护人员安全。',
-      sports: '世界杯足球赛进入淘汰赛阶段。各支球队展开激烈角逐，球迷热情高涨。'
+      sports: '世界杯足球赛进入淘汰赛阶段。各支球队展开激烈角逐，球迷热情高涨。',
     };
 
     let tr4w: TextRankKeyword;
 
     beforeAll(async () => {
       tr4w = new TextRankKeyword();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('不同领域文档应该产生不同的关键词特征', () => {
@@ -216,57 +219,67 @@ describe('真实业务场景测试', () => {
       for (const [category, text] of Object.entries(documents)) {
         tr4w.analyze(text, { lower: true, window: 2 });
         const keywords = tr4w.getKeywords(5, 1);
-        results[category] = keywords.map(k => k.word);
+        results[category] = keywords.map((k) => k.word);
       }
 
       // 技术类文档应该包含技术相关字符（适应轻量级分词器）
       const techWords = results.tech;
-      const hasTechTerms = techWords.some(word =>
-        word.includes('智') ||
-        word.includes('学') ||
-        word.includes('技') ||
-        word.includes('软') ||
-        word.includes('能') ||
-        word.includes('习') ||
-        word.includes('术') ||
-        word.includes('件')
+      const hasTechTerms = techWords.some(
+        (word) =>
+          word.includes('智') ||
+          word.includes('学') ||
+          word.includes('技') ||
+          word.includes('软') ||
+          word.includes('能') ||
+          word.includes('习') ||
+          word.includes('术') ||
+          word.includes('件')
       );
       expect(hasTechTerms).toBe(true);
 
       // 金融类文档应该包含金融词汇（适应轻量级分词器）
       const financeWords = results.finance;
-      const hasFinanceTerms = financeWords.some(word =>
-        word.includes('银行') ||
-        word.includes('股市') ||
-        word.includes('流动') ||
-        word.includes('央行') ||
-        word.includes('金融') ||
-        word.includes('货币') ||
-        word.includes('经济') ||
-        word.includes('政策') ||
-        word.includes('市场') ||
-        word.includes('资金') ||
-        word.includes('投资') ||
-        word.includes('宣布') ||
-        word.includes('板块') ||
-        word.includes('涨') ||
-        word.includes('万亿') ||
-        word.includes('元') ||
-        /\d+/.test(word) // 包含数字（如0.5、1.2等）
+      const hasFinanceTerms = financeWords.some(
+        (word) =>
+          word.includes('银行') ||
+          word.includes('股市') ||
+          word.includes('流动') ||
+          word.includes('央行') ||
+          word.includes('金融') ||
+          word.includes('货币') ||
+          word.includes('经济') ||
+          word.includes('政策') ||
+          word.includes('市场') ||
+          word.includes('资金') ||
+          word.includes('投资') ||
+          word.includes('宣布') ||
+          word.includes('板块') ||
+          word.includes('涨') ||
+          word.includes('万亿') ||
+          word.includes('元') ||
+          /\d+/.test(word) // 包含数字（如0.5、1.2等）
       );
       expect(hasFinanceTerms).toBe(true);
 
       // 体育类文档应该包含体育词汇（适应轻量级分词器）
       const sportsWords = results.sports;
-      const hasSportsTerms = sportsWords.some(word =>
-        word.includes('足球') || word.includes('球') ||
-        word.includes('世界') || 
-        word.includes('球队') || word.includes('队') ||
-        word.includes('球迷') || word.includes('迷') ||
-        word.includes('赛') || word.includes('比') ||
-        word.includes('淘汰') || word.includes('阶段') ||
-        word.includes('角逐') || word.includes('热情') ||
-        word.includes('杯') || word.includes('支')
+      const hasSportsTerms = sportsWords.some(
+        (word) =>
+          word.includes('足球') ||
+          word.includes('球') ||
+          word.includes('世界') ||
+          word.includes('球队') ||
+          word.includes('队') ||
+          word.includes('球迷') ||
+          word.includes('迷') ||
+          word.includes('赛') ||
+          word.includes('比') ||
+          word.includes('淘汰') ||
+          word.includes('阶段') ||
+          word.includes('角逐') ||
+          word.includes('热情') ||
+          word.includes('杯') ||
+          word.includes('支')
       );
       expect(hasSportsTerms).toBe(true);
 
@@ -283,18 +296,18 @@ describe('真实业务场景测试', () => {
       '上海发布新的房地产调控政策。',
       '深圳科技公司发布创新产品。',
       '广州美食节将于下月举行。',
-      '杭州西湖风景优美，游客众多。'
+      '杭州西湖风景优美，游客众多。',
     ];
 
     let tr4w: TextRankKeyword;
 
     beforeAll(async () => {
       tr4w = new TextRankKeyword();
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise((resolve) => setTimeout(resolve, 100));
     });
 
     it('应该能够批量处理多个文档', () => {
-      const batchResults: Array<{word: string, weight: number}[]> = [];
+      const batchResults: Array<{ word: string; weight: number }[]> = [];
 
       for (const doc of documents) {
         tr4w.analyze(doc, { lower: true, window: 2 });
@@ -305,18 +318,16 @@ describe('真实业务场景测试', () => {
       expect(batchResults.length).toBe(documents.length);
 
       // 每个文档都应该有关键词结果
-      batchResults.forEach(result => {
+      batchResults.forEach((result) => {
         expect(Array.isArray(result)).toBe(true);
-        result.forEach(keyword => {
+        result.forEach((keyword) => {
           expect(keyword).toHaveProperty('word');
           expect(keyword).toHaveProperty('weight');
         });
       });
 
       // 不同文档的关键词应该不同
-      const allKeywords = batchResults.map(result => 
-        result.map(k => k.word).join(',')
-      );
+      const allKeywords = batchResults.map((result) => result.map((k) => k.word).join(','));
       const uniqueKeywords = new Set(allKeywords);
       expect(uniqueKeywords.size).toBeGreaterThan(1);
     });

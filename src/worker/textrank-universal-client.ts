@@ -1,19 +1,28 @@
-import { 
-  WorkerMessage, 
-  WorkerTaskConfig, 
-  WorkerResult, 
-  WorkerOptions, 
-  WorkerType,
+import type {
+  WorkerMessage,
+  WorkerResult,
+  WorkerOptions,
   WorkerStatus,
+  WorkerTaskConfig,
   SyncModeHandlers,
   TextRankResult,
-  ErrorType
+  TextRankKeywordConfig,
+  TextRankSentenceConfig,
 } from '../types';
+import { WorkerType, ErrorType } from '../types';
 import { dataTransfer } from '../utils/data-transfer';
 import { mainThreadScheduler } from '../utils/main-thread-scheduler';
 import { TextRankKeyword } from '../core/textrank-keyword';
 import { TextRankSentence } from '../core/textrank-sentence';
-import { safeSync, safeAsync, ok, errOf } from '../utils/result-helpers';
+import { safeAsync, ok } from '../utils/result-helpers';
+
+/**
+ * Worker 任务载荷。
+ * 调用方直接透传可选参数，exactOptionalPropertyTypes 下需显式允许 undefined 值
+ */
+type WorkerTaskPayload = {
+  [K in keyof WorkerTaskConfig]: WorkerTaskConfig[K] | undefined;
+};
 
 /**
  * 通用 TextRank Worker 客户端
@@ -25,11 +34,14 @@ export class TextRankUniversalClient {
   private currentWorkerType: WorkerType;
   private worker: Worker | SharedWorker | null = null;
   private sharedWorkerPort: MessagePort | null = null;
-  private pendingTasks = new Map<string, {
-    resolve: (result: WorkerResult) => void;
-    reject: (error: Error) => void;
-    timeout: ReturnType<typeof setTimeout>;
-  }>();
+  private pendingTasks = new Map<
+    string,
+    {
+      resolve: (result: WorkerResult) => void;
+      reject: (error: Error) => void;
+      timeout: ReturnType<typeof setTimeout>;
+    }
+  >();
   private syncHandlers: SyncModeHandlers | null = null;
   private connectionCount = 0;
   private isInitialized = false;
@@ -45,16 +57,16 @@ export class TextRankUniversalClient {
         timeSlice: 5,
         maxContinuousTime: 16,
         priority: 'background',
-        idleTimeout: 50
-      }
+        idleTimeout: 50,
+      },
     };
 
     // 根据用户偏好和环境支持选择 Worker 类型
     this.currentWorkerType = this.selectWorkerType();
-    
+
     // 初始化同步模式处理器
     this.initSyncHandlers();
-    
+
     // 立即初始化 Worker
     this.initializeWorker();
   }
@@ -86,50 +98,50 @@ export class TextRankUniversalClient {
    */
   private initSyncHandlers(): void {
     this.syncHandlers = {
-      analyzeKeywords: async (text: string, config?: any, options?: any) => {
+      analyzeKeywords: async (text, config, options) => {
         const taskResult = await mainThreadScheduler.scheduleTask(async () => {
           const tr4w = new TextRankKeyword();
           tr4w.analyze(text, config);
-          
-          const result: any = {};
-          
+
+          const result: NonNullable<WorkerResult['data']> = {};
+
           if (options?.keywords) {
             result.keywords = tr4w.getKeywords(
               options.keywords.num || 10,
               options.keywords.wordMinLen || 1
             );
           }
-          
+
           if (options?.keyphrases) {
             result.keyphrases = tr4w.getKeyphrases(
               options.keyphrases.keywordsNum || 12,
               options.keyphrases.minOccurNum || 2
             );
           }
-          
+
           return result;
         }, this.options.syncScheduling || {});
-        
+
         if (!taskResult.ok) {
           throw new Error(`关键词分析失败: ${taskResult.error?.message || '未知错误'}`);
         }
         return taskResult.value;
       },
 
-      analyzeSentences: async (text: string, config?: any, options?: any) => {
+      analyzeSentences: async (text, config, options) => {
         const taskResult = await mainThreadScheduler.scheduleTask(async () => {
           const tr4s = new TextRankSentence();
           tr4s.analyze(text, config);
-          
-          const result: any = {};
-          
+
+          const result: NonNullable<WorkerResult['data']> = {};
+
           if (options?.sentences) {
             result.sentences = tr4s.getKeySentences(
               options.sentences.num || 5,
               options.sentences.sentenceMinLen || 6
             );
           }
-          
+
           if (options?.summary) {
             result.summary = tr4s.getSummary(
               options.summary.num || 3,
@@ -137,15 +149,15 @@ export class TextRankUniversalClient {
               options.summary.sortByIndex !== false
             );
           }
-          
+
           return result;
         }, this.options.syncScheduling || {});
-        
+
         if (!taskResult.ok) {
           throw new Error(`句子分析失败: ${taskResult.error?.message || '未知错误'}`);
         }
         return taskResult.value;
-      }
+      },
     };
   }
 
@@ -153,29 +165,36 @@ export class TextRankUniversalClient {
    * 初始化 Worker
    */
   private async initializeWorker(): Promise<TextRankResult<void>> {
-    const initResult = await safeAsync(async () => {
-      if (this.currentWorkerType === WorkerType.SYNC) {
-        console.log('TextRank4ZH-TS: 使用同步模式处理');
+    const initResult = await safeAsync(
+      async () => {
+        if (this.currentWorkerType === WorkerType.SYNC) {
+          console.log('TextRank4ZH-TS: 使用同步模式处理');
+          this.isInitialized = true;
+          return;
+        }
+
+        if (this.currentWorkerType === WorkerType.SHARED) {
+          await this.initSharedWorker();
+        } else {
+          await this.initDedicatedWorker();
+        }
+
         this.isInitialized = true;
-        return;
-      }
-
-      if (this.currentWorkerType === WorkerType.SHARED) {
-        await this.initSharedWorker();
-      } else {
-        await this.initDedicatedWorker();
-      }
-
-      this.isInitialized = true;
-      console.log(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化成功`);
-    }, ErrorType.WORKER_ERROR, { workerType: this.currentWorkerType });
+        console.log(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化成功`);
+      },
+      ErrorType.WORKER_ERROR,
+      { workerType: this.currentWorkerType }
+    );
 
     if (!initResult.ok) {
-      console.warn(`TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化失败:`, initResult.error?.message || '未知错误');
+      console.warn(
+        `TextRank4ZH-TS: ${this.currentWorkerType} Worker 初始化失败:`,
+        initResult.error?.message || '未知错误'
+      );
       const fallbackResult = await this.fallbackToNextWorkerType();
       return fallbackResult;
     }
-    
+
     return initResult;
   }
 
@@ -183,20 +202,24 @@ export class TextRankUniversalClient {
    * 初始化 SharedWorker
    */
   private async initSharedWorker(): Promise<void> {
-    const initResult = await safeAsync(async () => {
-      this.worker = new SharedWorker(this.workerUrl, { type: 'module' });
-      this.sharedWorkerPort = (this.worker as SharedWorker).port;
-      
-      this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
-      this.sharedWorkerPort.addEventListener('messageerror', ((error: Event) => {
-        this.handleError(error as ErrorEvent);
-      }) as EventListener);
-      
-      this.sharedWorkerPort.start();
-      this.connectionCount++;
-      
-      await this.waitForWorkerReady();
-    }, ErrorType.WORKER_ERROR, { workerType: 'SharedWorker', url: this.workerUrl });
+    const initResult = await safeAsync(
+      async () => {
+        this.worker = new SharedWorker(this.workerUrl, { type: 'module' });
+        this.sharedWorkerPort = (this.worker as SharedWorker).port;
+
+        this.sharedWorkerPort.onmessage = this.handleMessage.bind(this);
+        this.sharedWorkerPort.addEventListener('messageerror', ((error: Event) => {
+          this.handleError(error as ErrorEvent);
+        }) as EventListener);
+
+        this.sharedWorkerPort.start();
+        this.connectionCount++;
+
+        await this.waitForWorkerReady();
+      },
+      ErrorType.WORKER_ERROR,
+      { workerType: 'SharedWorker', url: this.workerUrl }
+    );
 
     if (!initResult.ok) {
       throw new Error(`SharedWorker 初始化失败: ${initResult.error?.message || '未知错误'}`);
@@ -207,14 +230,18 @@ export class TextRankUniversalClient {
    * 初始化专用 Worker
    */
   private async initDedicatedWorker(): Promise<void> {
-    const initResult = await safeAsync(async () => {
-      this.worker = new Worker(this.workerUrl, { type: 'module' });
-      
-      this.worker.onmessage = this.handleMessage.bind(this);
-      this.worker.onerror = this.handleError.bind(this);
-      
-      await this.waitForWorkerReady();
-    }, ErrorType.WORKER_ERROR, { workerType: 'DedicatedWorker', url: this.workerUrl });
+    const initResult = await safeAsync(
+      async () => {
+        this.worker = new Worker(this.workerUrl, { type: 'module' });
+
+        this.worker.onmessage = this.handleMessage.bind(this);
+        this.worker.onerror = this.handleError.bind(this);
+
+        await this.waitForWorkerReady();
+      },
+      ErrorType.WORKER_ERROR,
+      { workerType: 'DedicatedWorker', url: this.workerUrl }
+    );
 
     if (!initResult.ok) {
       throw new Error(`DedicatedWorker 初始化失败: ${initResult.error?.message || '未知错误'}`);
@@ -226,21 +253,34 @@ export class TextRankUniversalClient {
    */
   private waitForWorkerReady(): Promise<void> {
     return new Promise((resolve, reject) => {
+      // 等待 Worker 主动广播的 worker-ready 消息。
+      // 旧实现发一条空任务并在 postMessage() 落地时就判定就绪，而 postMessage()
+      // 只负责投递、不等回执，导致「就绪」恒为真、5 秒超时形同虚设，
+      // 连 Worker 脚本 404 都会被当成初始化成功。
+      const target: Worker | MessagePort | null =
+        this.currentWorkerType === WorkerType.SHARED
+          ? this.sharedWorkerPort
+          : (this.worker as Worker | null);
+
+      if (!target) {
+        reject(new Error('Worker 尚未创建，无法等待就绪'));
+        return;
+      }
+
+      function readyHandler(event: Event): void {
+        const message = (event as MessageEvent<WorkerMessage>).data;
+        if (message?.id !== 'worker-ready') return;
+        clearTimeout(timeout);
+        target?.removeEventListener('message', readyHandler);
+        resolve();
+      }
+
       const timeout = setTimeout(() => {
+        target?.removeEventListener('message', readyHandler);
         reject(new Error('Worker 初始化超时'));
       }, 5000);
 
-      const checkReady = () => {
-        clearTimeout(timeout);
-        resolve();
-      };
-
-      // 发送测试消息
-      this.postMessage({
-        id: 'init-test',
-        type: 'analyze_keywords',
-        payload: { text: '', config: {}, options: {} }
-      }).then(checkReady).catch(reject);
+      target.addEventListener('message', readyHandler);
     });
   }
 
@@ -250,26 +290,30 @@ export class TextRankUniversalClient {
   private async fallbackToNextWorkerType(): Promise<TextRankResult<void>> {
     console.warn(`TextRank4ZH-TS: 正在从 ${this.currentWorkerType} 降级...`);
 
-    return await safeAsync(async () => {
-      if (this.currentWorkerType === WorkerType.SHARED) {
-        this.currentWorkerType = WorkerType.DEDICATED;
-        console.log('TextRank4ZH-TS: 降级到 DedicatedWorker');
-      } else if (this.currentWorkerType === WorkerType.DEDICATED) {
-        if (this.options.fallbackToSync) {
-          this.currentWorkerType = WorkerType.SYNC;
-          console.log('TextRank4ZH-TS: 降级到同步模式');
+    return await safeAsync(
+      async () => {
+        if (this.currentWorkerType === WorkerType.SHARED) {
+          this.currentWorkerType = WorkerType.DEDICATED;
+          console.log('TextRank4ZH-TS: 降级到 DedicatedWorker');
+        } else if (this.currentWorkerType === WorkerType.DEDICATED) {
+          if (this.options.fallbackToSync) {
+            this.currentWorkerType = WorkerType.SYNC;
+            console.log('TextRank4ZH-TS: 降级到同步模式');
+          } else {
+            throw new Error('Worker 不可用且未启用同步模式降级');
+          }
         } else {
-          throw new Error('Worker 不可用且未启用同步模式降级');
+          throw new Error('所有 Worker 类型都不可用');
         }
-      } else {
-        throw new Error('所有 Worker 类型都不可用');
-      }
 
-      const initResult = await this.initializeWorker();
-      if (!initResult.ok) {
-        throw new Error(`降级后初始化失败: ${initResult.error?.message || '未知错误'}`);
-      }
-    }, ErrorType.WORKER_ERROR, { originalType: this.currentWorkerType, fallback: true });
+        const initResult = await this.initializeWorker();
+        if (!initResult.ok) {
+          throw new Error(`降级后初始化失败: ${initResult.error?.message || '未知错误'}`);
+        }
+      },
+      ErrorType.WORKER_ERROR,
+      { originalType: this.currentWorkerType, fallback: true }
+    );
   }
 
   /**
@@ -281,22 +325,28 @@ export class TextRankUniversalClient {
 
     if (!task) return;
 
+    // payload 跨序列化边界传回，结构由 type 决定，读取侧按需收窄
     if (message.type === 'error') {
       clearTimeout(task.timeout);
       this.pendingTasks.delete(message.id);
-      task.reject(new Error(message.payload?.error || '未知错误'));
+      const errorPayload = message.payload as { error?: string } | undefined;
+      task.reject(new Error(errorPayload?.error || '未知错误'));
     } else if (message.type === 'result') {
       clearTimeout(task.timeout);
       this.pendingTasks.delete(message.id);
-      
+
+      const resultPayload = message.payload as { duration?: number } | undefined;
+
       // 处理可能的 Transferable 数据
-      const processedData = dataTransfer.processReceivedData(message.payload);
-      
+      const processedData = dataTransfer.processReceivedData(message.payload) as NonNullable<
+        WorkerResult['data']
+      >;
+
       task.resolve({
         id: message.id,
         success: true,
         data: processedData,
-        duration: message.payload?.duration
+        ...(resultPayload?.duration !== undefined ? { duration: resultPayload.duration } : {}),
       });
     }
   }
@@ -306,9 +356,9 @@ export class TextRankUniversalClient {
    */
   private handleError(error: ErrorEvent): void {
     console.error('TextRank4ZH-TS Worker 错误:', error);
-    
+
     // 清理所有待处理任务
-    this.pendingTasks.forEach(task => {
+    this.pendingTasks.forEach((task) => {
       clearTimeout(task.timeout);
       task.reject(new Error(`Worker 错误: ${error.message}`));
     });
@@ -325,10 +375,10 @@ export class TextRankUniversalClient {
     }
 
     const { transferData, transferables } = dataTransfer.prepareDataForTransfer(message.payload);
-    
+
     const finalMessage: WorkerMessage = {
       ...message,
-      payload: transferData
+      payload: transferData,
     };
 
     if (this.currentWorkerType === WorkerType.SHARED && this.sharedWorkerPort) {
@@ -351,31 +401,38 @@ export class TextRankUniversalClient {
    */
   async analyzeKeywords(
     text: string,
-    config?: any,
-    options?: any
+    config?: TextRankKeywordConfig,
+    options?: WorkerTaskConfig['options']
   ): Promise<WorkerResult> {
     if (!this.isInitialized) {
       throw new Error('Worker 客户端未初始化');
     }
 
     if (this.currentWorkerType === WorkerType.SYNC && this.syncHandlers) {
+      const syncHandlers = this.syncHandlers;
       const startTime = Date.now();
       const syncResult = await safeAsync(
-        () => this.syncHandlers!.analyzeKeywords(text, config, options),
+        () => syncHandlers.analyzeKeywords(text, config, options),
         ErrorType.COMPUTATION_ERROR,
         { method: 'analyzeKeywords', mode: 'sync' }
       );
-      
+
+      const errorMessage = syncResult.ok ? undefined : syncResult.error?.message;
+
       return {
         id: `sync-${Date.now()}`,
         success: syncResult.ok,
-        data: syncResult.ok ? syncResult.value : undefined,
-        error: !syncResult.ok ? syncResult.error?.message : undefined,
-        duration: Date.now() - startTime
+        ...(syncResult.ok && syncResult.value !== undefined ? { data: syncResult.value } : {}),
+        ...(errorMessage !== undefined ? { error: errorMessage } : {}),
+        duration: Date.now() - startTime,
       };
     }
 
-    return this.executeWorkerTask('analyze_keywords', { text, config, options });
+    return this.executeWorkerTask('analyze_keywords', {
+      text,
+      config,
+      options,
+    });
   }
 
   /**
@@ -383,37 +440,47 @@ export class TextRankUniversalClient {
    */
   async analyzeSentences(
     text: string,
-    config?: any,
-    options?: any
+    config?: TextRankSentenceConfig,
+    options?: WorkerTaskConfig['options']
   ): Promise<WorkerResult> {
     if (!this.isInitialized) {
       throw new Error('Worker 客户端未初始化');
     }
 
     if (this.currentWorkerType === WorkerType.SYNC && this.syncHandlers) {
+      const syncHandlers = this.syncHandlers;
       const startTime = Date.now();
       const syncResult = await safeAsync(
-        () => this.syncHandlers!.analyzeSentences(text, config, options),
+        () => syncHandlers.analyzeSentences(text, config, options),
         ErrorType.COMPUTATION_ERROR,
         { method: 'analyzeSentences', mode: 'sync' }
       );
-      
+
+      const errorMessage = syncResult.ok ? undefined : syncResult.error?.message;
+
       return {
         id: `sync-${Date.now()}`,
         success: syncResult.ok,
-        data: syncResult.ok ? syncResult.value : undefined,
-        error: !syncResult.ok ? syncResult.error?.message : undefined,
-        duration: Date.now() - startTime
+        ...(syncResult.ok && syncResult.value !== undefined ? { data: syncResult.value } : {}),
+        ...(errorMessage !== undefined ? { error: errorMessage } : {}),
+        duration: Date.now() - startTime,
       };
     }
 
-    return this.executeWorkerTask('analyze_sentences', { text, config, options });
+    return this.executeWorkerTask('analyze_sentences', {
+      text,
+      config,
+      options,
+    });
   }
 
   /**
    * 执行 Worker 任务
    */
-  private executeWorkerTask(type: 'analyze_keywords' | 'analyze_sentences', payload: any): Promise<WorkerResult> {
+  private executeWorkerTask(
+    type: 'analyze_keywords' | 'analyze_sentences',
+    payload: WorkerTaskPayload
+  ): Promise<WorkerResult> {
     return new Promise((resolve, reject) => {
       if (this.pendingTasks.size >= this.options.maxConcurrent) {
         reject(new Error('任务队列已满'));
@@ -421,7 +488,7 @@ export class TextRankUniversalClient {
       }
 
       const id = `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
+
       const timeout = setTimeout(() => {
         this.pendingTasks.delete(id);
         reject(new Error('任务超时'));
@@ -432,10 +499,10 @@ export class TextRankUniversalClient {
       const message: WorkerMessage = {
         id,
         type,
-        payload
+        payload,
       };
 
-      this.postMessage(message).catch(error => {
+      this.postMessage(message).catch((error) => {
         clearTimeout(timeout);
         this.pendingTasks.delete(id);
         reject(error);
@@ -451,32 +518,38 @@ export class TextRankUniversalClient {
       type: this.currentWorkerType,
       supported: this.currentWorkerType !== WorkerType.SYNC || this.options.fallbackToSync,
       available: this.isInitialized,
-      connectionCount: this.currentWorkerType === WorkerType.SHARED ? this.connectionCount : undefined
+      ...(this.currentWorkerType === WorkerType.SHARED
+        ? { connectionCount: this.connectionCount }
+        : {}),
     };
   }
 
   /**
    * 获取详细状态（包含调度器信息）
    */
-  async getDetailedStatus(): Promise<WorkerStatus & {
-    schedulerStatus?: any;
-    mainThreadBusyness?: any;
-  }> {
+  async getDetailedStatus(): Promise<
+    WorkerStatus & {
+      schedulerStatus?: ReturnType<typeof mainThreadScheduler.getStatus>;
+      mainThreadBusyness?: Awaited<
+        ReturnType<typeof mainThreadScheduler.measureMainThreadBusyness>
+      >;
+    }
+  > {
     const basicStatus = this.getStatus();
-    
+
     if (this.currentWorkerType === WorkerType.SYNC) {
       const [schedulerStatus, busyness] = await Promise.all([
         Promise.resolve(mainThreadScheduler.getStatus()),
-        mainThreadScheduler.measureMainThreadBusyness()
+        mainThreadScheduler.measureMainThreadBusyness(),
       ]);
-      
+
       return {
         ...basicStatus,
         schedulerStatus,
-        mainThreadBusyness: busyness
+        mainThreadBusyness: busyness,
       };
     }
-    
+
     return basicStatus;
   }
 
@@ -488,52 +561,61 @@ export class TextRankUniversalClient {
       return ok(undefined);
     }
 
-    const optimizeResult = await safeAsync(async () => {
-      const busynessResult = await mainThreadScheduler.measureMainThreadBusyness();
-      if (!busynessResult.ok) {
-        throw new Error(`主线程繁忙程度检测失败: ${busynessResult.error?.message || '未知错误'}`);
-      }
-      
-      const busyness = busynessResult.value;
-      const currentScheduling = this.options.syncScheduling || {};
-      
-      switch (busyness.recommendation) {
-        case 'aggressive':
-          this.options.syncScheduling = {
-            ...currentScheduling,
-            timeSlice: 10,
-            maxContinuousTime: 32,
-            priority: 'normal'
-          };
-          break;
-          
-        case 'moderate':
-          this.options.syncScheduling = {
-            ...currentScheduling,
-            timeSlice: 5,
-            maxContinuousTime: 16,
-            priority: 'background'
-          };
-          break;
-          
-        case 'conservative':
-          this.options.syncScheduling = {
-            ...currentScheduling,
-            timeSlice: 2,
-            maxContinuousTime: 8,
-            priority: 'background',
-            idleTimeout: 20
-          };
-          break;
-      }
+    const optimizeResult = await safeAsync(
+      async () => {
+        const busynessResult = await mainThreadScheduler.measureMainThreadBusyness();
+        if (!busynessResult.ok) {
+          throw new Error(`主线程繁忙程度检测失败: ${busynessResult.error?.message || '未知错误'}`);
+        }
 
-      console.log(`TextRank4ZH-TS: 根据主线程繁忙程度 (${busyness.averageFrameTime.toFixed(2)}ms) 调整为 ${busyness.recommendation} 调度策略`);
-    }, ErrorType.COMPUTATION_ERROR, { feature: 'sync-scheduling-optimization' });
+        const busyness = busynessResult.value;
+        const currentScheduling = this.options.syncScheduling || {};
+
+        switch (busyness.recommendation) {
+          case 'aggressive':
+            this.options.syncScheduling = {
+              ...currentScheduling,
+              timeSlice: 10,
+              maxContinuousTime: 32,
+              priority: 'normal',
+            };
+            break;
+
+          case 'moderate':
+            this.options.syncScheduling = {
+              ...currentScheduling,
+              timeSlice: 5,
+              maxContinuousTime: 16,
+              priority: 'background',
+            };
+            break;
+
+          case 'conservative':
+            this.options.syncScheduling = {
+              ...currentScheduling,
+              timeSlice: 2,
+              maxContinuousTime: 8,
+              priority: 'background',
+              idleTimeout: 20,
+            };
+            break;
+        }
+
+        console.log(
+          `TextRank4ZH-TS: 根据主线程繁忙程度 (${busyness.averageFrameTime.toFixed(2)}ms) 调整为 ${busyness.recommendation} 调度策略`
+        );
+      },
+      ErrorType.COMPUTATION_ERROR,
+      { feature: 'sync-scheduling-optimization' }
+    );
 
     if (!optimizeResult.ok) {
-      console.warn('TextRank4ZH-TS: 主线程繁忙程度检测失败', optimizeResult.error?.message || '未知错误');
+      console.warn(
+        'TextRank4ZH-TS: 主线程繁忙程度检测失败',
+        optimizeResult.error?.message || '未知错误'
+      );
     }
-    
+
     return optimizeResult;
   }
 
@@ -549,7 +631,7 @@ export class TextRankUniversalClient {
    */
   terminate(): void {
     // 清理所有待处理任务
-    this.pendingTasks.forEach(task => {
+    this.pendingTasks.forEach((task) => {
       clearTimeout(task.timeout);
       task.reject(new Error('Worker 已终止'));
     });
@@ -566,7 +648,7 @@ export class TextRankUniversalClient {
       } else if (this.currentWorkerType === WorkerType.DEDICATED) {
         (this.worker as Worker).terminate();
       }
-      
+
       this.worker = null;
     }
 
@@ -578,7 +660,7 @@ export class TextRankUniversalClient {
    */
   static supportsWorkerType(type: WorkerType): boolean {
     const supportStatus = dataTransfer.getSupportStatus();
-    
+
     switch (type) {
       case WorkerType.SHARED:
         return supportStatus.sharedWorker;

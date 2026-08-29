@@ -12,7 +12,15 @@ import { AsyncAnalysisExecutor } from './utils/async-analysis';
 export { TextRankKeyword, TextRankSentence, Segmentation, WordSegmentation, SentenceSegmentation };
 
 // 导出 Web Worker 相关和异步工具
-export { TextRankWorkerClient, TextRankUniversalClient, WorkerDataTransfer, dataTransfer, MainThreadScheduler, mainThreadScheduler, AsyncAnalysisExecutor };
+export {
+  TextRankWorkerClient,
+  TextRankUniversalClient,
+  WorkerDataTransfer,
+  dataTransfer,
+  MainThreadScheduler,
+  mainThreadScheduler,
+  AsyncAnalysisExecutor,
+};
 
 // 导出类型定义
 export * from './types';
@@ -29,7 +37,7 @@ export {
   buildSentenceGraph,
   sortWords,
   sortSentences,
-  debug
+  debug,
 } from './utils';
 
 // 默认导出便捷接口
@@ -43,5 +51,5 @@ export default {
   dataTransfer,
   MainThreadScheduler,
   mainThreadScheduler,
-  AsyncAnalysisExecutor
+  AsyncAnalysisExecutor,
 };

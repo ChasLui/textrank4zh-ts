@@ -1,13 +1,14 @@
-import { 
-  KeywordItem, 
-  TextRankKeywordConfig, 
+import type {
+  KeywordItem,
+  TextRankKeywordConfig,
   AsyncTextRankKeywordConfig,
   SegmentationConfig,
   SegmentationResult,
   TextRankResult,
   AsyncTextRankResult,
-  ErrorType
+  PageRankConfig,
 } from '../types';
+import { ErrorType } from '../types';
 import { Segmentation } from './segmentation';
 import { sortWords, debug } from '../utils';
 import { safeSync, errOf, validateInput } from '../utils/result-helpers';
@@ -30,41 +31,49 @@ export class TextRankKeyword {
   /**
    * 分析文本，提取关键词（同步版本）
    */
-  analyze(
-    text: string, 
-    config: TextRankKeywordConfig = {}
-  ): TextRankResult<void> {
+  analyze(text: string, config: TextRankKeywordConfig = {}): TextRankResult<void> {
     const {
       window = 2,
       lower = false,
       vertexSource = 'all_filters',
       edgeSource = 'no_stop_words',
-      pageRankConfig = {}
+      pageRankConfig = {},
     } = config;
 
     this.text = text;
     this.keywords = [];
 
     // 安全执行文本分割
-    return safeSync(() => {
-      this.segmentationResult = this.segmentation.segment(this.text, { lower });
-      
-      debug('='.repeat(40));
-      debug('TextRankKeyword 分析结果:');
-      debug('sentences:', this.segmentationResult.sentences.join(' || '));
-      debug('wordsNoFilter:', this.segmentationResult.wordsNoFilter);
-      debug('wordsNoStopWords:', this.segmentationResult.wordsNoStopWords);
-      debug('wordsAllFilters:', this.segmentationResult.wordsAllFilters);
+    return safeSync(
+      () => {
+        this.segmentationResult = this.segmentation.segment(this.text, {
+          lower,
+        });
 
-      const analysisResult = this.performTextRankAnalysis(window, vertexSource, edgeSource, pageRankConfig);
-      if (!analysisResult.ok) {
-        throw new Error(analysisResult.error!.message);
+        debug('='.repeat(40));
+        debug('TextRankKeyword 分析结果:');
+        debug('sentences:', this.segmentationResult.sentences.join(' || '));
+        debug('wordsNoFilter:', this.segmentationResult.wordsNoFilter);
+        debug('wordsNoStopWords:', this.segmentationResult.wordsNoStopWords);
+        debug('wordsAllFilters:', this.segmentationResult.wordsAllFilters);
+
+        const analysisResult = this.performTextRankAnalysis(
+          window,
+          vertexSource,
+          edgeSource,
+          pageRankConfig
+        );
+        if (analysisResult.isError()) {
+          throw new Error(analysisResult.error.message);
+        }
+      },
+      ErrorType.COMPUTATION_ERROR,
+      {
+        text: this.text.substring(0, 100),
+        config,
+        phase: 'text_analysis',
       }
-    }, ErrorType.COMPUTATION_ERROR, { 
-      text: this.text.substring(0, 100), 
-      config,
-      phase: 'text_analysis' 
-    });
+    );
   }
 
   /**
@@ -77,11 +86,11 @@ export class TextRankKeyword {
   ): AsyncTextRankResult<void> {
     // 验证输入
     const validationResult = validateInput(text);
-    if (!validationResult.ok) {
-      const error = validationResult.error!;
-      return Result.error({ 
-        ...error, 
-        context: { ...(error.context || {}), config } 
+    if (validationResult.isError()) {
+      const error = validationResult.error;
+      return Result.error({
+        ...error,
+        context: { ...error.context, config },
       });
     }
 
@@ -96,7 +105,7 @@ export class TextRankKeyword {
       timeSlice = 5,
       maxContinuousTime = 16,
       yieldInterval = 100,
-      priority = 'background'
+      priority = 'background',
     } = config;
 
     this.text = validationResult.value;
@@ -107,7 +116,7 @@ export class TextRankKeyword {
       timeSlice,
       maxContinuousTime,
       yieldInterval,
-      priority
+      priority,
     });
 
     // 异步执行分析流程
@@ -116,14 +125,14 @@ export class TextRankKeyword {
         // 阶段1: 分词
         segmentation: () => {
           this.segmentationResult = this.segmentation.segment(validationResult.value, { lower });
-          
+
           debug('='.repeat(40));
           debug('TextRankKeyword 异步分析结果:');
           debug('sentences:', this.segmentationResult.sentences.join(' || '));
           debug('wordsNoFilter:', this.segmentationResult.wordsNoFilter);
           debug('wordsNoStopWords:', this.segmentationResult.wordsNoStopWords);
           debug('wordsAllFilters:', this.segmentationResult.wordsAllFilters);
-          
+
           return this.segmentationResult;
         },
 
@@ -132,20 +141,20 @@ export class TextRankKeyword {
           if (!this.segmentationResult) {
             throw new Error('分词结果为空');
           }
-          
+
           const vertexWordsResult = this.getWordSource(vertexSource);
           const edgeWordsResult = this.getWordSource(edgeSource);
-          
-          if (!vertexWordsResult.ok) {
-            throw new Error(`获取vertex词源失败: ${vertexWordsResult.error!.message}`);
+
+          if (vertexWordsResult.isError()) {
+            throw new Error(`获取vertex词源失败: ${vertexWordsResult.error.message}`);
           }
-          if (!edgeWordsResult.ok) {
-            throw new Error(`获取edge词源失败: ${edgeWordsResult.error!.message}`);
+          if (edgeWordsResult.isError()) {
+            throw new Error(`获取edge词源失败: ${edgeWordsResult.error.message}`);
           }
-          
+
           return {
             vertexWords: vertexWordsResult.value,
-            edgeWords: edgeWordsResult.value
+            edgeWords: edgeWordsResult.value,
           };
         },
 
@@ -154,20 +163,25 @@ export class TextRankKeyword {
           if (!this.segmentationResult) {
             throw new Error('分词结果为空');
           }
-          
+
           const vertexWordsResult = this.getWordSource(vertexSource);
           const edgeWordsResult = this.getWordSource(edgeSource);
-          
+
           if (!vertexWordsResult.ok || !edgeWordsResult.ok) {
             throw new Error('获取词源失败');
           }
 
           // 执行sortWords，如果支持进度回调则传递
-          const sortWordsWithProgress = (vertexWords: string[][], edgeWords: string[][], windowSize: number, prConfig: any) => {
+          const sortWordsWithProgress = (
+            vertexWords: string[][],
+            edgeWords: string[][],
+            windowSize: number,
+            prConfig: PageRankConfig
+          ) => {
             // 这里可以改造sortWords函数支持进度回调
             // 暂时使用原有实现
             const result = sortWords(vertexWords, edgeWords, windowSize, prConfig);
-            
+
             // 模拟进度报告
             if (progressCallback) {
               const maxIterations = prConfig.maxIterations || 100;
@@ -175,7 +189,7 @@ export class TextRankKeyword {
                 progressCallback(Math.min(i, maxIterations), maxIterations);
               }
             }
-            
+
             return result;
           };
 
@@ -192,10 +206,10 @@ export class TextRankKeyword {
           if (!this.segmentationResult) {
             throw new Error('分词结果为空');
           }
-          
+
           const vertexWordsResult = this.getWordSource(vertexSource);
           const edgeWordsResult = this.getWordSource(edgeSource);
-          
+
           if (!vertexWordsResult.ok || !edgeWordsResult.ok) {
             throw new Error('获取词源失败');
           }
@@ -206,15 +220,15 @@ export class TextRankKeyword {
             window,
             pageRankConfig
           );
-          
+
           debug('异步分析完成，关键词数量:', this.keywords.length);
           return undefined; // TextRankResult<void>
-        }
+        },
       },
       asyncConfig,
       {
         itemCount: this.segmentationResult?.sentences.length || 0,
-        maxIterations: pageRankConfig.maxIterations || 100
+        maxIterations: pageRankConfig.maxIterations || 100,
       }
     );
   }
@@ -226,48 +240,64 @@ export class TextRankKeyword {
     window: number,
     vertexSource: 'no_filter' | 'no_stop_words' | 'all_filters',
     edgeSource: 'no_filter' | 'no_stop_words' | 'all_filters',
-    pageRankConfig: any
+    pageRankConfig: PageRankConfig
   ): TextRankResult<void> {
     const vertexWordsResult = this.getWordSource(vertexSource);
-    if (!vertexWordsResult.ok) {
-      return errOf(ErrorType.COMPUTATION_ERROR, `获取 vertex 词源失败: ${vertexWordsResult.error!.message}`);
-    }
-    
-    const edgeWordsResult = this.getWordSource(edgeSource);
-    if (!edgeWordsResult.ok) {
-      return errOf(ErrorType.COMPUTATION_ERROR, `获取 edge 词源失败: ${edgeWordsResult.error!.message}`);
+    if (vertexWordsResult.isError()) {
+      return errOf(
+        ErrorType.COMPUTATION_ERROR,
+        `获取 vertex 词源失败: ${vertexWordsResult.error.message}`
+      );
     }
 
-    return safeSync(() => {
-      this.keywords = sortWords(vertexWordsResult.value, edgeWordsResult.value, window, pageRankConfig);
-    }, ErrorType.COMPUTATION_ERROR, { vertexSource, edgeSource, window });
+    const edgeWordsResult = this.getWordSource(edgeSource);
+    if (edgeWordsResult.isError()) {
+      return errOf(
+        ErrorType.COMPUTATION_ERROR,
+        `获取 edge 词源失败: ${edgeWordsResult.error.message}`
+      );
+    }
+
+    return safeSync(
+      () => {
+        this.keywords = sortWords(
+          vertexWordsResult.value,
+          edgeWordsResult.value,
+          window,
+          pageRankConfig
+        );
+      },
+      ErrorType.COMPUTATION_ERROR,
+      { vertexSource, edgeSource, window }
+    );
   }
 
   /**
    * 根据源类型获取对应的词列表
    */
-  private getWordSource(source: 'no_filter' | 'no_stop_words' | 'all_filters'): TextRankResult<string[][]> {
+  private getWordSource(
+    source: 'no_filter' | 'no_stop_words' | 'all_filters'
+  ): TextRankResult<string[][]> {
     if (!this.segmentationResult) {
-      return errOf(
-        ErrorType.VALIDATION_ERROR, 
-        '请先调用 analyze 方法',
-        undefined,
-        { source }
-      );
+      return errOf(ErrorType.VALIDATION_ERROR, '请先调用 analyze 方法', undefined, { source });
     }
 
-    return Result.ok((() => {
-      switch (source) {
-        case 'no_filter':
-          return this.segmentationResult!.wordsNoFilter;
-        case 'no_stop_words':
-          return this.segmentationResult!.wordsNoStopWords;
-        case 'all_filters':
-          return this.segmentationResult!.wordsAllFilters;
-        default:
-          return this.segmentationResult!.wordsAllFilters;
-      }
-    })());
+    const segmentationResult = this.segmentationResult;
+
+    return Result.ok(
+      (() => {
+        switch (source) {
+          case 'no_filter':
+            return segmentationResult.wordsNoFilter;
+          case 'no_stop_words':
+            return segmentationResult.wordsNoStopWords;
+          case 'all_filters':
+            return segmentationResult.wordsAllFilters;
+          default:
+            return segmentationResult.wordsAllFilters;
+        }
+      })()
+    );
   }
 
   /**
@@ -282,7 +312,7 @@ export class TextRankKeyword {
 
     for (const item of this.keywords) {
       if (count >= num) break;
-      
+
       if (item.word.length >= wordMinLen) {
         result.push(item);
         count++;
@@ -304,9 +334,7 @@ export class TextRankKeyword {
     }
 
     // 获取关键词集合
-    const keywordsSet = new Set(
-      this.getKeywords(keywordsNum, 1).map(item => item.word)
-    );
+    const keywordsSet = new Set(this.getKeywords(keywordsNum, 1).map((item) => item.word));
 
     const keyphrases = new Set<string>();
 
@@ -333,7 +361,7 @@ export class TextRankKeyword {
     }
 
     // 过滤出现次数符合要求的短语
-    return Array.from(keyphrases).filter(phrase => {
+    return Array.from(keyphrases).filter((phrase) => {
       const count = (this.text.match(new RegExp(phrase, 'g')) || []).length;
       return count >= minOccurNum;
     });
