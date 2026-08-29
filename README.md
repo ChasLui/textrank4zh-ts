@@ -38,12 +38,12 @@ npm install textrank4zh-ts
 ```html
 <!-- 通过 jsDelivr 的 GitHub 源引入：省略版本号即最新 tag -->
 <script type="module">
-  import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
+  import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.mjs';
   // 使用库...
 </script>
 
 <!-- 生产环境建议锁定版本：在仓库名后加 @<tag>，例如 @v0.2.4 -->
-<!-- https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@v0.2.4/dist/index.mjs -->
+<!-- https://cdn.jsdelivr.net/npm/textrank4zh-ts@0.2.4/dist/index.mjs -->
 ```
 
 ### 在线演示

@@ -65,7 +65,7 @@ python -m SimpleHTTPServer 8000
 ```html
 <!-- 通过 CDN 引入 -->
 <script type="module">
-  import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
+  import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.mjs';
   
   const text = '你的中文文本';
   

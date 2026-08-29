@@ -111,7 +111,7 @@ tr4w.analyze(text, {
   </script>
   
   <!-- 从 jsDelivr CDN 加载 IIFE 版本 (GitHub 源) -->
-  <script src="https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.iife.js"></script>
   <script>
     // 使用全局变量 TextRank4ZH
     const { TextRankKeyword, TextRankSentence } = TextRank4ZH;
@@ -135,7 +135,7 @@ tr4w.analyze(text, {
 </head>
 <body>
   <script type="module">
-    import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
+    import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.mjs';
     
     const text = '你的中文文本';
     const tr4w = new TextRankKeyword();
@@ -150,11 +150,11 @@ tr4w.analyze(text, {
 
 | 格式 | jsDelivr CDN URL (GitHub 源) |
 |------|----------------------|
-| IIFE | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.iife.js` |
-| ES Module | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs` |
-| CommonJS | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.cjs` |
-| Worker | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.worker.js` |
-| SharedWorker | `https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.sharedworker.js` |
+| IIFE | `https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.iife.js` |
+| ES Module | `https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.mjs` |
+| CommonJS | `https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.cjs` |
+| Worker | `https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.worker.js` |
+| SharedWorker | `https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.sharedworker.js` |
 
 ## 🧪 测试用例作为示例
 
