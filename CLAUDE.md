@@ -244,7 +244,7 @@ const client = new TextRankUniversalClient('./dist/index.worker.js');
 ```html
 <!-- 通过CDN使用 -->
 <script type="module">
-  import { TextRankKeyword } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
+  import { TextRankKeyword } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.mjs';
 </script>
 ```
 
@@ -262,37 +262,34 @@ const client = new TextRankUniversalClient('./dist/index.worker.js');
 
 ### Conventional Commits 规范
 
-使用以下前缀格式来触发不同类型的版本发布：
+commit 前缀决定**要不要发布**；**发哪一级**由 release-it 依据「上次发布以来的全部 commit」推断，而非只看最新一条。
 
-#### Patch 版本 (0.1.0 → 0.1.1)
+#### 触发发布的前缀
+
 ```bash
 git commit -m "fix: 修复关键词提取的边界情况问题"
 git commit -m "perf: 优化分词算法性能"
-```
-
-#### Minor 版本 (0.1.0 → 0.2.0)  
-```bash
 git commit -m "feat: 添加新的文本摘要算法"
 git commit -m "feat(worker): 增加SharedWorker支持"
+git commit -m "feat!: 重构API，移除已弃用方法"
 ```
 
-#### Major 版本 (0.1.0 → 1.0.0)
-```bash
-git commit -m "feat!: 重构API，移除已弃用方法"
-git commit -m "fix!: 修复分词接口，改变返回格式"
-```
+#### 版本级别如何确定
+
+在累积的未发布 commit 中：出现过破坏性变更(`!`) → major；出现过 `feat:` → minor；只有 `fix:` / `perf:` → patch。
+
+**这意味着**：若上次发布后已有 `feat:` 提交，此后一条 `fix:` 触发的发布仍会是 minor —— 那个 feature 尚未发布，理应计入。v0.3.0 正是如此产生：累积了「词表扩充」与「自定义分词器」两个 feat，最终由一条 fix 触发。
 
 **注意**: 感叹号(!)表示破坏性变更，会触发major版本发布。
 
 ### 自动发布工作流程
 
-1. **提交检查**: 系统分析最新commit message
-2. **版本判断**: 根据前缀确定发布类型
-3. **质量检查**: 自动运行lint、test、build
-4. **版本发布**: 执行相应的release命令
-5. **更新日志**: 自动生成CHANGELOG.md
-6. **NPM发布**: 发布到npm registry
-7. **GitHub Release**: 创建GitHub release
+1. **提交检查**: 分析最新commit message，判断是否需要发布
+2. **质量检查**: 自动运行lint、test、build
+3. **版本推断**: release-it 依据全部未发布 commit 计算版本号
+4. **更新日志**: 自动生成CHANGELOG.md
+5. **NPM发布**: 经 Trusted Publisher (OIDC) 发布到npm registry
+6. **GitHub Release**: 创建GitHub release并上传dist产物
 
 ### 跳过自动发布的场景
 
@@ -307,7 +304,7 @@ git commit -m "fix!: 修复分词接口，改变返回格式"
 
 ### 手动发布
 
-如果需要手动控制发布流程：
+如果需要手动控制发布流程。注意 OIDC 只在 GitHub Actions 中生效，本地发布需自行 `npm login` 并在 publish 时输入 2FA 验证码：
 
 ```bash
 # 预览将要发布的内容
@@ -324,8 +321,10 @@ pnpm run release:major
 
 ### GitHub Actions配置
 
-自动发布需要以下secrets配置：
-- `NPM_TOKEN`: npm发布token
+npm 认证使用 **Trusted Publisher (OIDC)**，不需要 npm token：
+
+- npm 侧：包的 Settings → Trusted Publisher 绑定 `ChasLui/textrank4zh-ts` 的 `release.yml`，权限勾选 `npm publish`
+- workflow 侧：`permissions` 需含 `id-token: write`；不要给 `setup-node` 设 `registry-url`（它会写入空的 `_authToken` 反而导致认证失败）；`release-it` 需加 `--npm.skipChecks`（OIDC 凭证在 publish 时才换取，`npm whoami` 阶段尚不存在）
 - `GITHUB_TOKEN`: GitHub API token（自动提供）
 
 发布工作流程位于：`.github/workflows/release.yml`
