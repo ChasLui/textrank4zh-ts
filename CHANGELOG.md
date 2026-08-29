@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.4.0](https://github.com/ChasLui/textrank4zh-ts/compare/v0.3.0...v0.4.0) (2026-08-29)
+
+### Features
+
+* 移除 typescript-result 运行时依赖，改用内置 Result 实现 ([86a1a99](https://github.com/ChasLui/textrank4zh-ts/commit/86a1a997eb843c4abd1c2be5bbc2f462fe173294))
+
 ## [0.3.0](https://github.com/ChasLui/textrank4zh-ts/compare/v0.2.3...v0.3.0) (2026-08-29)
 
 ### Features
