@@ -32,13 +32,18 @@ TextRank算法的TypeScript实现，专门用于中文文本的关键词提取�
 npm install textrank4zh-ts
 ```
 
+> Node.js 版本要求：`^20.19.0 || >=22.12.0`（浏览器端使用不受此限制）。
+
 ### 浏览器直接引入
 ```html
-<!-- 通过 CDN 引入 (推荐使用具体版本号) -->
+<!-- 通过 jsDelivr 的 GitHub 源引入：省略版本号即最新 tag -->
 <script type="module">
-  import { TextRankKeyword, TextRankSentence } from 'https://unpkg.com/textrank4zh-ts@latest/dist/index.mjs';
+  import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
   // 使用库...
 </script>
+
+<!-- 生产环境建议锁定版本：在仓库名后加 @<tag>，例如 @v0.2.4 -->
+<!-- https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts@v0.2.4/dist/index.mjs -->
 ```
 
 ### 在线演示
@@ -724,7 +729,7 @@ console.log('关键词数量:', count);
 # 安装依赖
 npm install
 
-# 开发构建
+# 开发构建（Vite 监听重建）
 npm run dev
 
 # 完整构建
@@ -733,7 +738,10 @@ npm run build
 # 运行测试
 npm test
 
-# 代码检查和格式化
+# 类型检查
+npm run typecheck
+
+# 代码检查和格式化（oxlint + oxfmt）
 npm run lint
 npm run format
 ```
@@ -861,9 +869,10 @@ TextRank算法基于Google的PageRank算法，将文本中的词语或句子看�
 
 ### 开发依赖
 - TypeScript: 类型支持
-- unbuild: 构建工具  
+- Vite: 构建工具（内置 rolldown 打包器）
+- unplugin-dts + api-extractor: 类型声明生成
 - vitest: 测试框架
-- ESLint + Prettier: 代码质量保证
+- oxlint + oxfmt: 代码质量保证
 
 ## 许可证
 
