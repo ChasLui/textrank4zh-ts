@@ -27,7 +27,10 @@ TextRank算法的TypeScript实现，专门用于中文文本的关键词提取�
 
 ## 安装
 
-### npm 安装
+### npm 安装（推荐）
+
+来自 npm 官方源，包名 `textrank4zh-ts`，无需任何认证：
+
 ```bash
 npm install textrank4zh-ts
 ```
@@ -48,7 +51,9 @@ npm install textrank4zh-ts
 
 ### 从 GitHub Packages 安装
 
-同一份产物也发布到 GitHub Packages，包名为 `@chaslui/textrank4zh-ts` —— 该 registry 强制要求 scope 与仓库 owner 一致，故与 npm 上的包名不同。
+同一份产物也发布到 GitHub Packages，但**包名不同**：那里叫 `@chaslui/textrank4zh-ts` —— 该 registry 强制要求 scope 与仓库 owner 一致。两个包名指向完全相同的产物，按你使用的源二选一即可，**不要同时安装**。
+
+先配置 registry 与认证：
 
 ```ini
 # .npmrc
@@ -56,11 +61,23 @@ npm install textrank4zh-ts
 //npm.pkg.github.com/:_authToken=<你的 GitHub PAT>
 ```
 
+然后用命令行安装：
+
 ```bash
-npm install @chaslui/textrank4zh-ts
+npm install @chaslui/textrank4zh-ts@0.3.0
 ```
 
-> GitHub Packages 即便对公开包也要求 PAT（`read:packages`）认证才能安装。无此需求时用上面的 npm 源即可，两者产物完全相同。
+或在 `package.json` 中声明：
+
+```json
+{
+  "dependencies": {
+    "@chaslui/textrank4zh-ts": "0.3.0"
+  }
+}
+```
+
+> GitHub Packages 即便对公开包也要求 PAT（`read:packages`）认证才能安装 —— 这是该 registry 的固有限制，与包是否公开无关。没有这个需求就用上面的 npm 源。
 
 ### 在线演示
 🔗 [浏览器在线演示](https://chaslui.github.io/textrank4zh-ts/browser/) - 无需安装，直接在浏览器中体验  
