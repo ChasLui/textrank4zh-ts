@@ -76,7 +76,7 @@ jobs:
           persist-credentials: true  # 保持认证信息，用于后续git操作
 
       - name: Setup pnpm
-        uses: pnpm/setup@v2
+        uses: pnpm/setup@v2.1.0
         with:
           install: false
           cache: true
@@ -121,6 +121,22 @@ jobs:
           pnpm exec release-it --ci --npm.skipChecks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 把同一份产物再发一份到 GitHub Packages。两点约束：
+      # 1. 该 registry 要求 scoped 包名且 scope 必须等于仓库 owner，故临时改名
+      #    为 @chaslui/textrank4zh-ts 发布后还原 package.json；
+      # 2. --ignore-scripts 跳过 prepublishOnly，dist 在上一步已构建，重跑只会
+      #    先 clean 掉再重建并跑一遍全量测试。
+      # npm registry 上的 textrank4zh-ts 仍是主入口：GitHub Packages 即便包是
+      # 公开的，安装方也必须持 PAT 认证。
+      - name: Publish to GitHub Packages
+        run: |
+          echo "//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}" >> ~/.npmrc
+          npm pkg set name="@chaslui/textrank4zh-ts"
+          npm publish --registry=https://npm.pkg.github.com --ignore-scripts
+          git checkout -- package.json
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       
       - name: Notify release completion
         if: success()
@@ -161,10 +177,9 @@ jobs:
           echo "📝 Commit message: $COMMIT_MSG"
           echo ""
           echo "💡 To trigger auto-release, use conventional commit prefixes:"
-          echo "   feat: new feature (minor release)"
-          echo "   fix: bug fix (patch release)" 
-          echo "   perf: performance improvement (patch release)"
-          echo "   feat!: breaking change (major release)"
-          echo "   fix!: breaking fix (major release)"
+          echo "   feat: / fix: / perf:  (optional scope, optional ! for breaking)"
+          echo ""
+          echo "📊 版本级别由 release-it 依据全部未发布 commit 推断："
+          echo "   含破坏性变更(!) → major；含 feat → minor；仅 fix/perf → patch"
           echo ""
           echo "🔧 For manual release, run: pnpm run release"

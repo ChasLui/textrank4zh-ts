@@ -36,15 +36,31 @@ npm install textrank4zh-ts
 
 ### 浏览器直接引入
 ```html
-<!-- 通过 jsDelivr 的 GitHub 源引入：省略版本号即最新 tag -->
+<!-- 通过 jsDelivr 的 npm 源引入：省略版本号即最新发布版本 -->
 <script type="module">
   import { TextRankKeyword, TextRankSentence } from 'https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.mjs';
   // 使用库...
 </script>
 
-<!-- 生产环境建议锁定版本：在仓库名后加 @<tag>，例如 @v0.2.4 -->
-<!-- https://cdn.jsdelivr.net/npm/textrank4zh-ts@0.2.4/dist/index.mjs -->
+<!-- 生产环境建议锁定版本：在包名后加 @<version>，例如 @0.3.0 -->
+<!-- https://cdn.jsdelivr.net/npm/textrank4zh-ts@0.3.0/dist/index.mjs -->
 ```
+
+### 从 GitHub Packages 安装
+
+同一份产物也发布到 GitHub Packages，包名为 `@chaslui/textrank4zh-ts` —— 该 registry 强制要求 scope 与仓库 owner 一致，故与 npm 上的包名不同。
+
+```ini
+# .npmrc
+@chaslui:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=<你的 GitHub PAT>
+```
+
+```bash
+npm install @chaslui/textrank4zh-ts
+```
+
+> GitHub Packages 即便对公开包也要求 PAT（`read:packages`）认证才能安装。无此需求时用上面的 npm 源即可，两者产物完全相同。
 
 ### 在线演示
 🔗 [浏览器在线演示](https://chaslui.github.io/textrank4zh-ts/browser/) - 无需安装，直接在浏览器中体验  

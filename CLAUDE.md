@@ -288,8 +288,9 @@ git commit -m "feat!: 重构API，移除已弃用方法"
 2. **质量检查**: 自动运行lint、test、build
 3. **版本推断**: release-it 依据全部未发布 commit 计算版本号
 4. **更新日志**: 自动生成CHANGELOG.md
-5. **NPM发布**: 经 Trusted Publisher (OIDC) 发布到npm registry
+5. **NPM发布**: 经 Trusted Publisher (OIDC) 发布到npm registry，自动附带 SLSA provenance
 6. **GitHub Release**: 创建GitHub release并上传dist产物
+7. **GitHub Packages**: 同一份产物以 `@chaslui/textrank4zh-ts` 再发一份
 
 ### 跳过自动发布的场景
 
@@ -325,7 +326,17 @@ npm 认证使用 **Trusted Publisher (OIDC)**，不需要 npm token：
 
 - npm 侧：包的 Settings → Trusted Publisher 绑定 `ChasLui/textrank4zh-ts` 的 `release.yml`，权限勾选 `npm publish`
 - workflow 侧：`permissions` 需含 `id-token: write`；不要给 `setup-node` 设 `registry-url`（它会写入空的 `_authToken` 反而导致认证失败）；`release-it` 需加 `--npm.skipChecks`（OIDC 凭证在 publish 时才换取，`npm whoami` 阶段尚不存在）
-- `GITHUB_TOKEN`: GitHub API token（自动提供）
+- `GITHUB_TOKEN`: GitHub API token（自动提供），同时用于发布 GitHub Packages
+
+因为发布走 OIDC，npm 会自动为产物生成 **SLSA provenance** 证明，在 npm 页面显示构建来源。这要求仓库公开且经 GitHub Actions 发布，无需额外配置。
+
+### GitHub Packages
+
+npm registry 上的 `textrank4zh-ts` 是主入口；GitHub Packages 上另有一份 `@chaslui/textrank4zh-ts`：
+
+- 包名必须 scoped 且 scope 等于仓库 owner，故发布前用 `npm pkg set name=` 临时改名，发布后 `git checkout -- package.json` 还原
+- 发布用 `--ignore-scripts`，避免 `prepublishOnly` 把上一步刚构建的 dist 清掉重来
+- 该 registry 即便对公开包也要求安装方持 PAT 认证，因此它是补充而非替代
 
 发布工作流程位于：`.github/workflows/release.yml`
 
