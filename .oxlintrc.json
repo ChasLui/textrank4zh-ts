@@ -1,0 +1,31 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": {
+    // correctness 默认 severity 是 warn，而 warning 不会让 CI 失败，必须提到 error
+    "correctness": "error"
+  },
+  "rules": {
+    "prefer-const": "error",
+    "no-var": "error",
+    // TypeScript 已覆盖未使用变量检查
+    "no-unused-vars": "off",
+    // 禁止 ! 非空断言：它绕过 noUncheckedIndexedAccess 等严格选项建立的保障。
+    // 需要处理可空值时应显式判空 / 早返回 / ?? 兜底，而不是断言。
+    // 注意不要改用 ?. —— 那会把「立即失败」变成「静默 undefined」，与本意相反。
+    "typescript/no-non-null-assertion": "error",
+    // 禁止 any：序列化边界（Worker postMessage / JSON）用 unknown + 收窄，
+    // 或对边界数据做单步 as 断言并注明；不要用 any 让类型检查整体失效。
+    "typescript/no-explicit-any": "error"
+  },
+  "overrides": [
+    {
+      // typescript-result 的 Result.Ok<Value> 中 value 是条件类型
+      // `[T] extends [never] ? undefined : T`，在泛型工具函数里无法化简为 T，
+      // 即便用 isOk() 收窄也必须保留断言。仅此文件豁免，且已逐处加注释说明。
+      "files": ["src/utils/result-helpers.ts"],
+      "rules": {
+        "typescript/no-non-null-assertion": "off"
+      }
+    }
+  ]
+}

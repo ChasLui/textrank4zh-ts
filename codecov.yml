@@ -27,7 +27,7 @@ ignore:
   - "examples/**"        # 示例文件
   - "dist/**"           # 构建产物
   - "*.config.*"        # 配置文件
-  - "build.config.ts"   # 构建配置
+  - "vite.config.ts"    # 构建配置
   - "vitest.config.ts"  # 测试配置
   - ".github/**"        # GitHub配置
   - "*.md"              # 文档文件

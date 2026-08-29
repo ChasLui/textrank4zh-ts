@@ -5,12 +5,10 @@ export default defineConfig({
     globals: true,
     environment: 'node',
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
-    exclude: ['node_modules', 'dist', 'examples'],
-    coverage: {
-      reporter: ['text', 'html', 'lcov'],
-      exclude: ['node_modules/', 'tests/', 'examples/', 'dist/'],
-      include: ['src/**/*.ts'],
-    },
     testTimeout: 10000,
+    coverage: {
+      include: ['src/**/*.ts'],
+      reporter: ['text', 'html', 'lcov'],
+    },
   },
 });
