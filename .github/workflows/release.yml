@@ -25,7 +25,6 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       should-release: ${{ steps.check.outputs.should-release }}
-      release-type: ${{ steps.check.outputs.release-type }}
       commit-message: ${{ steps.check.outputs.commit-message }}
     
     steps:
@@ -49,22 +48,11 @@ jobs:
             exit 0
           fi
           
-          # 检查conventional commit格式并确定发布类型
-          if [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?!: ]] || [[ "$COMMIT_MSG" =~ ^fix(\(.+\))?!: ]] || [[ "$COMMIT_MSG" =~ ^perf(\(.+\))?!: ]]; then
-            # Breaking change - major release
+          # 只判定「要不要发」；「发哪一级」由 release-it 依据全部未发布
+          # commit 推断，见下方 Release 步骤。
+          if [[ "$COMMIT_MSG" =~ ^(feat|fix|perf)(\(.+\))?!?: ]]; then
             echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "release-type=major" >> $GITHUB_OUTPUT
-            echo "🚨 Breaking change detected, will trigger MAJOR release"
-          elif [[ "$COMMIT_MSG" =~ ^feat(\(.+\))?: ]]; then
-            # New feature - minor release
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "release-type=minor" >> $GITHUB_OUTPUT
-            echo "✨ New feature detected, will trigger MINOR release"
-          elif [[ "$COMMIT_MSG" =~ ^fix(\(.+\))?: ]] || [[ "$COMMIT_MSG" =~ ^perf(\(.+\))?: ]]; then
-            # Bug fix or performance - patch release
-            echo "should-release=true" >> $GITHUB_OUTPUT
-            echo "release-type=patch" >> $GITHUB_OUTPUT
-            echo "🐛 Bug fix detected, will trigger PATCH release"
+            echo "✅ Release-worthy commit detected, will trigger release"
           else
             # 其他类型的commit (docs, style, refactor, test, chore等) 不触发发布
             echo "should-release=false" >> $GITHUB_OUTPUT
