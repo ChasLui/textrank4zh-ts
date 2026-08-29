@@ -18,6 +18,14 @@ permissions:
   pull-requests: read # 允许读取PR信息
   id-token: write    # npm Trusted Publisher (OIDC) 换取发布凭证
 
+# 发布必须串行。两个 release 并发时，后完成的那个 git push 会因
+# non-fast-forward 被拒，而它的 npm publish 早已成功，留下无对应 tag 的孤儿
+# 版本（0.3.1 即如此产生）。cancel-in-progress 必须为 false：发布中途被取消
+# 会留下更糟的半成品状态。
+concurrency:
+  group: release
+  cancel-in-progress: false
+
 env:
   PNPM_CACHE_FOLDER: .pnpm-store
 
@@ -82,6 +90,9 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v7
         with:
+          # 取 main 的最新状态而非触发时的 SHA：发布要往 main 推 commit 和
+          # tag，基于旧 SHA 会 non-fast-forward 失败，而此时 npm 已发布完毕。
+          ref: main
           fetch-depth: 0  # 获取完整历史，用于changelog生成
           token: ${{ secrets.GITHUB_TOKEN }}
           persist-credentials: true  # 保持认证信息，用于后续git操作
