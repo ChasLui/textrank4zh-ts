@@ -4,13 +4,13 @@
  */
 
 import { mainThreadScheduler } from './main-thread-scheduler';
-import { 
-  AsyncAnalysisConfig, 
+import type {
+  AsyncAnalysisConfig,
   AnalysisProgress,
   ProgressCallback,
   AsyncTextRankResult,
-  ErrorType
 } from '../types';
+import { ErrorType } from '../types';
 import { errOf } from './result-helpers';
 
 /**
@@ -22,18 +22,28 @@ export class AsyncAnalysisExecutor {
    */
   private static createProgressReporter(
     onProgress: ProgressCallback | undefined
-  ): (phase: AnalysisProgress['phase'], progress: number, message: string, details?: any) => void {
+  ): (
+    phase: AnalysisProgress['phase'],
+    progress: number,
+    message: string,
+    details?: AnalysisProgress['details']
+  ) => void {
     if (!onProgress) {
       return () => {}; // 空函数，避免检查
     }
 
-    return (phase: AnalysisProgress['phase'], progress: number, message: string, details?: any) => {
+    return (
+      phase: AnalysisProgress['phase'],
+      progress: number,
+      message: string,
+      details?: AnalysisProgress['details']
+    ) => {
       const phaseWeights = {
         segmentation: 0.25,
-        graph_building: 0.35, 
+        graph_building: 0.35,
         pagerank: 0.35,
         sorting: 0.05,
-        complete: 0
+        complete: 0,
       };
 
       const phaseBaseProgress = {
@@ -41,17 +51,20 @@ export class AsyncAnalysisExecutor {
         graph_building: 25,
         pagerank: 60,
         sorting: 95,
-        complete: 100
+        complete: 100,
       };
 
-      const adjustedProgress = Math.min(100, phaseBaseProgress[phase] + (progress * phaseWeights[phase]));
+      const adjustedProgress = Math.min(
+        100,
+        phaseBaseProgress[phase] + progress * phaseWeights[phase]
+      );
 
-      onProgress({
-        phase,
-        progress: adjustedProgress,
-        message,
-        details
-      });
+      // exactOptionalPropertyTypes 下可选属性不能显式赋 undefined，按需附加
+      const progressInfo: AnalysisProgress = { phase, progress: adjustedProgress, message };
+      if (details !== undefined) {
+        progressInfo.details = details;
+      }
+      onProgress(progressInfo);
     };
   }
 
@@ -67,7 +80,7 @@ export class AsyncAnalysisExecutor {
       timeSlice = 5,
       maxContinuousTime = 16,
       yieldInterval = 100,
-      priority = 'background'
+      priority = 'background',
     } = config;
 
     reportProgress('segmentation', 0, '开始文本分词...');
@@ -83,7 +96,7 @@ export class AsyncAnalysisExecutor {
         timeSlice,
         maxContinuousTime,
         yieldInterval,
-        priority
+        priority,
       }
     );
 
@@ -101,12 +114,17 @@ export class AsyncAnalysisExecutor {
   ): AsyncTextRankResult<T> {
     const {
       timeSlice = 5,
-      maxContinuousTime = 16, 
+      maxContinuousTime = 16,
       yieldInterval = 100,
-      priority = 'background'
+      priority = 'background',
     } = config;
 
-    reportProgress('graph_building', 0, '构建关系图...', { totalItems: itemCount });
+    reportProgress(
+      'graph_building',
+      0,
+      '构建关系图...',
+      itemCount === undefined ? undefined : { totalItems: itemCount }
+    );
 
     // 如果有大量数据，分块处理
     if (itemCount && itemCount > 1000) {
@@ -131,7 +149,9 @@ export class AsyncAnalysisExecutor {
             }
 
             const progress = (processedItems / itemCount) * 100;
-            reportProgress('graph_building', progress, 
+            reportProgress(
+              'graph_building',
+              progress,
               `构建关系图... (${processedItems}/${itemCount})`,
               { processedItems, totalItems: itemCount }
             );
@@ -143,7 +163,7 @@ export class AsyncAnalysisExecutor {
             const isComplete = executeChunk();
             if (!isComplete && performance.now() % 16 < timeSlice) {
               // 让出控制权
-              await new Promise(resolve => setTimeout(resolve, 0));
+              await new Promise((resolve) => setTimeout(resolve, 0));
             }
           }
 
@@ -179,7 +199,7 @@ export class AsyncAnalysisExecutor {
       timeSlice = 5,
       maxContinuousTime = 16,
       yieldInterval = 50, // PageRank迭代间隔更小
-      priority = 'background'
+      priority = 'background',
     } = config;
 
     reportProgress('pagerank', 0, 'PageRank算法开始...', { maxIterations });
@@ -191,10 +211,10 @@ export class AsyncAnalysisExecutor {
         const iterationProgressCallback = (iteration: number, max: number) => {
           currentIteration = iteration;
           const progress = (iteration / max) * 100;
-          reportProgress('pagerank', progress, 
-            `PageRank迭代中... (${iteration}/${max})`,
-            { iterations: iteration, maxIterations: max }
-          );
+          reportProgress('pagerank', progress, `PageRank迭代中... (${iteration}/${max})`, {
+            iterations: iteration,
+            maxIterations: max,
+          });
         };
 
         // 如果迭代次数较多，需要分块处理
@@ -212,7 +232,7 @@ export class AsyncAnalysisExecutor {
                   result = pageRankFn(iterationProgressCallback);
 
                   const elapsed = performance.now() - startTime;
-                  
+
                   if (elapsed > maxContinuousTime && currentIteration < maxIterations) {
                     // 让出控制权
                     setTimeout(processChunk, 0);
@@ -254,7 +274,7 @@ export class AsyncAnalysisExecutor {
       timeSlice = 5,
       maxContinuousTime = 16,
       yieldInterval = 100,
-      priority = 'background'
+      priority = 'background',
     } = config;
 
     reportProgress('sorting', 0, '结果排序中...');
@@ -277,9 +297,9 @@ export class AsyncAnalysisExecutor {
    */
   static async executeFullAnalysis<T>(
     phases: {
-      segmentation: () => any;
-      graphBuilding: () => any; 
-      pageRank: (progressCallback?: (iteration: number, max: number) => void) => any;
+      segmentation: () => unknown;
+      graphBuilding: () => unknown;
+      pageRank: (progressCallback?: (iteration: number, max: number) => void) => unknown;
       sorting: () => T;
     },
     config: AsyncAnalysisConfig,
@@ -293,8 +313,8 @@ export class AsyncAnalysisExecutor {
     try {
       // 阶段1: 分词
       const segmentationResult = await this.executeSegmentation(
-        phases.segmentation, 
-        config, 
+        phases.segmentation,
+        config,
         reportProgress
       );
       if (!segmentationResult.ok) {
@@ -324,11 +344,7 @@ export class AsyncAnalysisExecutor {
       }
 
       // 阶段4: 排序
-      const sortingResult = await this.executeSorting(
-        phases.sorting,
-        config,
-        reportProgress
-      );
+      const sortingResult = await this.executeSorting(phases.sorting, config, reportProgress);
       if (!sortingResult.ok) {
         return sortingResult;
       }
@@ -336,7 +352,6 @@ export class AsyncAnalysisExecutor {
       // 完成
       reportProgress('complete', 100, '分析完成');
       return sortingResult;
-
     } catch (error) {
       return errOf(
         ErrorType.COMPUTATION_ERROR,
@@ -356,7 +371,7 @@ export class AsyncAnalysisExecutor {
       maxContinuousTime: 16,
       yieldInterval: 100,
       priority: 'background',
-      ...overrides
+      ...overrides,
     };
   }
 }

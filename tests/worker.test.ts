@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 import { TextRankWorkerClient } from '../src/worker/textrank-worker-client';
+import type { WorkerMessage } from '../src/types';
 
 describe('TextRank Web Worker', () => {
   let workerClient: TextRankWorkerClient;
@@ -7,15 +8,17 @@ describe('TextRank Web Worker', () => {
   // Mock Worker API for Node.js environment
   beforeAll(() => {
     // 模拟 Worker 环境
-    global.Worker = vi.fn().mockImplementation((script: string) => {
+    // Vitest 4: mocks called with `new` are constructed, so an arrow function
+    // would throw "<anonymous> is not a constructor"
+    global.Worker = vi.fn().mockImplementation(function (script: string) {
       const worker = {
         postMessage: vi.fn(),
         terminate: vi.fn(),
-        onmessage: null as any,
-        onerror: null as any,
+        onmessage: null as ((event: MessageEvent) => void) | null,
+        onerror: null as ((event: ErrorEvent) => void) | null,
         addEventListener: vi.fn(),
         removeEventListener: vi.fn(),
-        dispatchEvent: vi.fn()
+        dispatchEvent: vi.fn(),
       };
 
       // 模拟异步Worker响应
@@ -25,14 +28,14 @@ describe('TextRank Web Worker', () => {
             data: {
               id: 'worker-ready',
               type: 'result',
-              payload: { message: 'TextRank Worker is ready' }
-            }
+              payload: { message: 'TextRank Worker is ready' },
+            },
           } as MessageEvent);
         }
       }, 10);
 
       // 模拟任务响应
-      worker.postMessage = vi.fn((message: any) => {
+      worker.postMessage = vi.fn((message: WorkerMessage) => {
         if (message.type === 'analyze_keywords') {
           setTimeout(() => {
             if (worker.onmessage) {
@@ -46,13 +49,13 @@ describe('TextRank Web Worker', () => {
                     data: {
                       keywords: [
                         { word: '中国', weight: 0.8 },
-                        { word: '首都', weight: 0.6 }
+                        { word: '首都', weight: 0.6 },
                       ],
-                      keyphrases: ['中国首都', '政治中心']
+                      keyphrases: ['中国首都', '政治中心'],
                     },
-                    duration: 100
-                  }
-                }
+                    duration: 100,
+                  },
+                },
               } as MessageEvent);
             }
           }, 50);
@@ -67,14 +70,12 @@ describe('TextRank Web Worker', () => {
                     id: message.id,
                     success: true,
                     data: {
-                      sentences: [
-                        { index: 0, sentence: '北京是中国的首都。', weight: 0.9 }
-                      ],
-                      summary: '北京是中国的首都。'
+                      sentences: [{ index: 0, sentence: '北京是中国的首都。', weight: 0.9 }],
+                      summary: '北京是中国的首都。',
                     },
-                    duration: 80
-                  }
-                }
+                    duration: 80,
+                  },
+                },
               } as MessageEvent);
             }
           }, 50);
@@ -86,7 +87,7 @@ describe('TextRank Web Worker', () => {
 
     workerClient = new TextRankWorkerClient('/test/worker.js', {
       timeout: 5000,
-      maxConcurrent: 5
+      maxConcurrent: 5,
     });
   });
 
@@ -117,7 +118,7 @@ describe('TextRank Web Worker', () => {
       const result = {
         keywords: [{ word: '中国', weight: 0.8 }],
         keyphrases: ['中国首都'],
-        duration: 100
+        duration: 100,
       };
 
       expect(result).toHaveProperty('keywords');
@@ -126,7 +127,7 @@ describe('TextRank Web Worker', () => {
       expect(Array.isArray(result.keywords)).toBe(true);
       expect(Array.isArray(result.keyphrases)).toBe(true);
       expect(typeof result.duration).toBe('number');
-      
+
       if (result.keywords && result.keywords.length > 0) {
         expect(result.keywords[0]).toHaveProperty('word');
         expect(result.keywords[0]).toHaveProperty('weight');
@@ -138,7 +139,7 @@ describe('TextRank Web Worker', () => {
       const config = {
         window: 3,
         vertexSource: 'all_filters' as const,
-        pageRankConfig: { alpha: 0.9 }
+        pageRankConfig: { alpha: 0.9 },
       };
 
       expect(config.window).toBe(3);
@@ -153,14 +154,14 @@ describe('TextRank Web Worker', () => {
       const result = {
         sentences: [{ index: 0, sentence: '北京是中国的首都。', weight: 0.9 }],
         summary: '北京是中国的首都。',
-        duration: 80
+        duration: 80,
       };
 
       expect(result).toHaveProperty('sentences');
       expect(result).toHaveProperty('summary');
       expect(result).toHaveProperty('duration');
       expect(typeof result.duration).toBe('number');
-      
+
       if (result.sentences && result.sentences.length > 0) {
         expect(result.sentences[0]).toHaveProperty('index');
         expect(result.sentences[0]).toHaveProperty('sentence');
@@ -177,7 +178,7 @@ describe('TextRank Web Worker', () => {
         keyphrases: ['人工智能技术'],
         sentences: [{ index: 0, sentence: '人工智能技术发展迅速。', weight: 0.9 }],
         summary: '人工智能技术发展迅速。',
-        totalDuration: 150
+        totalDuration: 150,
       };
 
       expect(result).toHaveProperty('keywords');
@@ -199,10 +200,10 @@ describe('TextRank Web Worker', () => {
 
     it('应该处理并发限制', () => {
       // 测试并发配置
-      const promises = Array.from({ length: 3 }, (_, i) => 
+      const promises = Array.from({ length: 3 }, (_, i) =>
         Promise.resolve({ duration: 100 + i * 10 })
       );
-      
+
       expect(promises).toHaveLength(3);
     });
   });
@@ -225,7 +226,7 @@ describe('TextRank Web Worker', () => {
     it('Worker 分析应该返回执行时间', () => {
       // 测试性能结果结构
       const result = { duration: 150 };
-      
+
       expect(result.duration).toBeGreaterThan(0);
       expect(result.duration).toBeLessThan(5000); // 应该在5秒内完成
     });
@@ -235,15 +236,15 @@ describe('TextRank Web Worker', () => {
       const texts = [
         '第一段测试文本，用于性能对比。',
         '第二段测试文本，包含不同内容。',
-        '第三段测试文本，验证并行处理。'
+        '第三段测试文本，验证并行处理。',
       ];
 
       const results = texts.map((text, i) => ({ duration: 100 + i * 10 }));
 
       expect(results).toHaveLength(3);
-      
+
       // 确保所有任务都有执行时间
-      results.forEach(result => {
+      results.forEach((result) => {
         expect(result).toHaveProperty('duration');
       });
     });

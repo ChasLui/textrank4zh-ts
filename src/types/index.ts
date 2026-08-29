@@ -1,17 +1,5 @@
-// 扩展 Window 接口以支持实验性 API
-declare global {
-  interface Window {
-    scheduler?: {
-      postTask?: (
-        callback: () => void,
-        options?: { priority?: string; signal?: AbortSignal }
-      ) => Promise<void>;
-    };
-  }
-}
-
 // 导入 typescript-result 类型
-import { Result } from 'typescript-result';
+import type { Result } from 'typescript-result';
 
 /**
  * 自定义错误类型
@@ -24,7 +12,7 @@ export enum ErrorType {
   VALIDATION_ERROR = 'VALIDATION_ERROR',
   NETWORK_ERROR = 'NETWORK_ERROR',
   TIMEOUT_ERROR = 'TIMEOUT_ERROR',
-  UNSUPPORTED_ERROR = 'UNSUPPORTED_ERROR'
+  UNSUPPORTED_ERROR = 'UNSUPPORTED_ERROR',
 }
 
 /**
@@ -34,7 +22,7 @@ export interface TextRankError {
   type: ErrorType;
   message: string;
   cause?: Error;
-  context?: Record<string, any>;
+  context?: Record<string, unknown>;
 }
 
 /**
@@ -127,7 +115,9 @@ export interface TextRankKeywordConfig {
  * 异步分析配置
  */
 export interface AsyncAnalysisConfig {
-  onProgress?: ProgressCallback;
+  // 显式允许 undefined：语义上等价于 Option<Callback> 的 None，
+  // 而非「字段缺失」（exactOptionalPropertyTypes 下二者是不同的类型）
+  onProgress?: ProgressCallback | undefined;
   timeSlice?: number; // 时间片大小（毫秒），默认 5ms
   maxContinuousTime?: number; // 最大连续执行时间（毫秒），默认 16ms (60fps)
   yieldInterval?: number; // 让出控制权间隔（迭代次数），默认 100
@@ -184,19 +174,36 @@ export interface PageRankResult {
  */
 export const DEFAULT_CONFIG = {
   SENTENCE_DELIMITERS: ['?', '!', ';', '？', '！', '。', '；', '……', '…', '\n'],
-  ALLOW_SPEECH_TAGS: ['an', 'i', 'j', 'l', 'n', 'nr', 'nrfg', 'ns', 'nt', 'nz', 't', 'v', 'vd', 'vn', 'eng'],
+  ALLOW_SPEECH_TAGS: [
+    'an',
+    'i',
+    'j',
+    'l',
+    'n',
+    'nr',
+    'nrfg',
+    'ns',
+    'nt',
+    'nz',
+    't',
+    'v',
+    'vd',
+    'vn',
+    'eng',
+  ],
   PAGERANK: {
     alpha: 0.85,
     maxIterations: 100,
-    tolerance: 1e-6
-  }
+    tolerance: 1e-6,
+  },
 } as const;
 
 // Web Worker 消息类型
 export interface WorkerMessage {
   id: string;
   type: 'analyze_keywords' | 'analyze_sentences' | 'error' | 'result';
-  payload?: any;
+  // Worker 消息边界是序列化边界，内容由 type 决定，读取侧需自行收窄
+  payload?: unknown;
   transferable?: Transferable[]; // 可传输对象列表
 }
 
@@ -247,10 +254,10 @@ export interface WorkerOptions {
   preferredWorkerType?: 'shared' | 'dedicated' | 'auto'; // 首选 Worker 类型
   fallbackToSync?: boolean; // 是否允许降级到同步模式
   syncScheduling?: {
-    timeSlice?: number;           // 时间片大小（毫秒），默认 5ms
-    maxContinuousTime?: number;   // 最大连续执行时间，默认 16ms (60fps)
-    idleTimeout?: number;         // requestIdleCallback 超时时间，默认 50ms
-    yieldInterval?: number;       // 让出控制权间隔（迭代次数），默认 1000
+    timeSlice?: number; // 时间片大小（毫秒），默认 5ms
+    maxContinuousTime?: number; // 最大连续执行时间，默认 16ms (60fps)
+    idleTimeout?: number; // requestIdleCallback 超时时间，默认 50ms
+    yieldInterval?: number; // 让出控制权间隔（迭代次数），默认 1000
     priority?: 'background' | 'normal' | 'user-blocking'; // 任务优先级
   };
 }
@@ -286,8 +293,8 @@ export interface DataTransferUtils {
 // Worker 类型枚举
 export enum WorkerType {
   SHARED = 'shared',
-  DEDICATED = 'dedicated', 
-  SYNC = 'sync'
+  DEDICATED = 'dedicated',
+  SYNC = 'sync',
 }
 
 // Worker 状态接口
@@ -300,6 +307,14 @@ export interface WorkerStatus {
 
 // 同步模式回调接口
 export interface SyncModeHandlers {
-  analyzeKeywords: (text: string, config?: any, options?: any) => Promise<any>;
-  analyzeSentences: (text: string, config?: any, options?: any) => Promise<any>;
+  analyzeKeywords: (
+    text: string,
+    config?: TextRankKeywordConfig,
+    options?: WorkerTaskConfig['options']
+  ) => Promise<WorkerResult['data']>;
+  analyzeSentences: (
+    text: string,
+    config?: TextRankSentenceConfig,
+    options?: WorkerTaskConfig['options']
+  ) => Promise<WorkerResult['data']>;
 }

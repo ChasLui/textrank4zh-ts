@@ -2,22 +2,29 @@
  * 测试辅助函数
  */
 
-import { TextRankResult } from '../src/types';
+import type { Result } from 'typescript-result';
+import type { TextRankResult, TextRankError } from '../src/types';
 
 /**
  * 断言 Result 为成功状态
  */
-export function expectResultOk<T>(result: TextRankResult<T>): asserts result is { ok: true; value: T } {
+export function expectResultOk<T>(
+  result: TextRankResult<T>
+  // 断言目标必须是 TextRankResult 的子类型。写成结构化字面量 { ok: true; value: T }
+  // 会触发 TS2677 —— typescript-result 的 Result 是带内部成员的类实例，字面量不是它的子类型
+): asserts result is Result.Ok<T> {
   expect(result.ok).toBe(true);
-  if (!result.ok) {
-    throw new Error(`Expected Ok, got Err: ${result.error!.message}`);
+  if (result.isError()) {
+    throw new Error(`Expected Ok, got Err: ${result.error.message}`);
   }
 }
 
 /**
  * 断言 Result 为失败状态
  */
-export function expectResultErr<T>(result: TextRankResult<T>): asserts result is { ok: false; error: any } {
+export function expectResultErr<T>(
+  result: TextRankResult<T>
+): asserts result is Result.Error<TextRankError> {
   expect(result.ok).toBe(false);
   if (result.ok) {
     throw new Error('Expected Err, got Ok');
@@ -27,7 +34,7 @@ export function expectResultErr<T>(result: TextRankResult<T>): asserts result is
 /**
  * 安全执行分析并返回结果
  */
-export function safeAnalyze<T extends { analyze: (...args: any[]) => TextRankResult<void> }>(
+export function safeAnalyze<T extends { analyze(...args: unknown[]): TextRankResult<void> }>(
   analyzer: T,
   ...args: Parameters<T['analyze']>
 ): void {
@@ -38,13 +45,14 @@ export function safeAnalyze<T extends { analyze: (...args: any[]) => TextRankRes
 /**
  * 比较数组是否相等（带容差）
  */
-export function arraysEqual(a: any[], b: any[], tolerance: number = 0): boolean {
+export function arraysEqual(a: unknown[], b: unknown[], tolerance: number = 0): boolean {
   if (a.length !== b.length) return false;
   return a.every((val, i) => {
-    if (typeof val === 'number' && typeof b[i] === 'number') {
-      return Math.abs(val - b[i]) <= tolerance;
+    const other = b[i];
+    if (typeof val === 'number' && typeof other === 'number') {
+      return Math.abs(val - other) <= tolerance;
     }
-    return val === b[i];
+    return val === other;
   });
 }
 
@@ -53,7 +61,7 @@ export function arraysEqual(a: any[], b: any[], tolerance: number = 0): boolean 
  */
 export function getTestText(size: 'small' | 'medium' | 'large' = 'medium'): string {
   const small = '北京是中华人民共和国的首都，是全国政治中心、文化中心。';
-  
+
   const medium = `
 北京是中华人民共和国的首都，是全国政治中心、文化中心。
 上海是中华人民共和国直辖市，是中国最大的经济中心城市。

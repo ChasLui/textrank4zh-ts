@@ -4,7 +4,8 @@
  */
 
 import { Result } from 'typescript-result';
-import { TextRankError, ErrorType, TextRankResult, AsyncTextRankResult } from '../types';
+import type { TextRankError, TextRankResult, AsyncTextRankResult } from '../types';
+import { ErrorType } from '../types';
 
 /**
  * 创建 TextRankError
@@ -13,14 +14,17 @@ export function createError(
   type: ErrorType,
   message: string,
   cause?: Error,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): TextRankError {
-  return {
-    type,
-    message,
-    cause,
-    context
-  };
+  // exactOptionalPropertyTypes 下可选属性不能显式赋 undefined，按需附加
+  const error: TextRankError = { type, message };
+  if (cause !== undefined) {
+    error.cause = cause;
+  }
+  if (context !== undefined) {
+    error.context = context;
+  }
+  return error;
 }
 
 /**
@@ -44,7 +48,7 @@ export function errOf<T>(
   type: ErrorType,
   message: string,
   cause?: Error,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): TextRankResult<T> {
   return Result.error(createError(type, message, cause, context));
 }
@@ -55,18 +59,20 @@ export function errOf<T>(
 export function safeSync<T>(
   fn: () => T,
   errorType: ErrorType = ErrorType.COMPUTATION_ERROR,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): TextRankResult<T> {
   try {
     const result = fn();
     return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
-    return Result.error(createError(
-      errorType,
-      error instanceof Error ? error.message : String(error),
-      error instanceof Error ? error : undefined,
-      context
-    )) as TextRankResult<T>;
+    return Result.error(
+      createError(
+        errorType,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined,
+        context
+      )
+    ) as TextRankResult<T>;
   }
 }
 
@@ -76,18 +82,20 @@ export function safeSync<T>(
 export async function safeAsync<T>(
   fn: () => Promise<T>,
   errorType: ErrorType = ErrorType.COMPUTATION_ERROR,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): AsyncTextRankResult<T> {
   try {
     const result = await fn();
     return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
-    return Result.error(createError(
-      errorType,
-      error instanceof Error ? error.message : String(error),
-      error instanceof Error ? error : undefined,
-      context
-    )) as TextRankResult<T>;
+    return Result.error(
+      createError(
+        errorType,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined,
+        context
+      )
+    ) as TextRankResult<T>;
   }
 }
 
@@ -97,44 +105,40 @@ export async function safeAsync<T>(
 export async function fromPromise<T>(
   promise: Promise<T>,
   errorType: ErrorType = ErrorType.COMPUTATION_ERROR,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): AsyncTextRankResult<T> {
   try {
     const result = await promise;
     return Result.ok(result) as TextRankResult<T>;
   } catch (error) {
-    return Result.error(createError(
-      errorType,
-      error instanceof Error ? error.message : String(error),
-      error instanceof Error ? error : undefined,
-      context
-    )) as TextRankResult<T>;
+    return Result.error(
+      createError(
+        errorType,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined,
+        context
+      )
+    ) as TextRankResult<T>;
   }
 }
 
 /**
  * 检查输入参数的有效性
  */
-export function validateInput(
-  text: string,
-  minLength = 1
-): TextRankResult<string> {
+export function validateInput(text: string, minLength = 1): TextRankResult<string> {
   if (!text || typeof text !== 'string') {
-    return errOf(
-      ErrorType.VALIDATION_ERROR,
-      '文本内容不能为空且必须为字符串类型',
-      undefined,
-      { text, type: typeof text }
-    );
+    return errOf(ErrorType.VALIDATION_ERROR, '文本内容不能为空且必须为字符串类型', undefined, {
+      text,
+      type: typeof text,
+    });
   }
 
   if (text.trim().length < minLength) {
-    return errOf(
-      ErrorType.VALIDATION_ERROR,
-      `文本长度不能少于 ${minLength} 个字符`,
-      undefined,
-      { text: text.trim(), length: text.trim().length, minLength }
-    );
+    return errOf(ErrorType.VALIDATION_ERROR, `文本长度不能少于 ${minLength} 个字符`, undefined, {
+      text: text.trim(),
+      length: text.trim().length,
+      minLength,
+    });
   }
 
   return Result.ok(text.trim());
@@ -143,18 +147,18 @@ export function validateInput(
 /**
  * 组合多个 Result，全部成功才返回成功
  */
-export function combineResults<T>(
-  results: TextRankResult<T>[]
-): TextRankResult<T[]> {
+export function combineResults<T>(results: TextRankResult<T>[]): TextRankResult<T[]> {
   const values: T[] = [];
-  
+
   for (const result of results) {
-    if (!result.ok) {
+    if (result.isError()) {
       return result;
     }
+    // typescript-result 的 value 是条件类型 `[T] extends [never] ? undefined : T`，
+    // 在泛型上下文中无法化简为 T，这里必须保留断言（守卫已确保非空）
     values.push(result.value!);
   }
-  
+
   return Result.ok(values);
 }
 
@@ -175,7 +179,8 @@ export function chainResult<T, U>(
   result: TextRankResult<T>,
   chainer: (value: T) => TextRankResult<U>
 ): TextRankResult<U> {
-  if (result.ok) {
+  if (result.isOk()) {
+    // 同上：泛型下条件类型无法化简，守卫已确保非空
     return chainer(result.value!);
   } else {
     return result as TextRankResult<U>;
@@ -185,10 +190,7 @@ export function chainResult<T, U>(
 /**
  * 提供默认值处理失败的 Result
  */
-export function withDefault<T>(
-  result: TextRankResult<T>,
-  defaultValue: T
-): T {
+export function withDefault<T>(result: TextRankResult<T>, defaultValue: T): T {
   return result.getOrDefault(defaultValue);
 }
 
@@ -213,10 +215,11 @@ export function handleResult<T, U>(
   onOk: (value: T) => U,
   onErr: (error: TextRankError) => U
 ): U {
-  if (result.ok) {
+  if (result.isOk()) {
+    // 同上：泛型下条件类型无法化简，守卫已确保非空
     return onOk(result.value!);
   } else {
-    return onErr(result.error!);
+    return onErr(result.error);
   }
 }
 
@@ -226,16 +229,16 @@ export function handleResult<T, U>(
 export async function withTimeout<T>(
   promise: Promise<T>,
   timeoutMs: number,
-  context?: Record<string, any>
+  context?: Record<string, unknown>
 ): AsyncTextRankResult<T> {
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
-      reject(createError(
-        ErrorType.TIMEOUT_ERROR,
-        `操作超时（${timeoutMs}ms）`,
-        undefined,
-        { timeout: timeoutMs, ...context }
-      ));
+      reject(
+        createError(ErrorType.TIMEOUT_ERROR, `操作超时（${timeoutMs}ms）`, undefined, {
+          timeout: timeoutMs,
+          ...context,
+        })
+      );
     }, timeoutMs);
   });
 
@@ -246,11 +249,13 @@ export async function withTimeout<T>(
     if (error instanceof Error && error.message.includes('操作超时')) {
       return Result.error(error as unknown as TextRankError) as TextRankResult<T>;
     }
-    return Result.error(createError(
-      ErrorType.COMPUTATION_ERROR,
-      error instanceof Error ? error.message : String(error),
-      error instanceof Error ? error : undefined,
-      context
-    )) as TextRankResult<T>;
+    return Result.error(
+      createError(
+        ErrorType.COMPUTATION_ERROR,
+        error instanceof Error ? error.message : String(error),
+        error instanceof Error ? error : undefined,
+        context
+      )
+    ) as TextRankResult<T>;
   }
 }
