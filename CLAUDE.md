@@ -135,7 +135,7 @@ dist/
 `build` 脚本依次执行三次 Vite 构建（默认 / `--mode worker` / `--mode sharedworker`），最后由 `build:dts-compat` 从 `index.d.ts` 复制出 `index.d.cts` 和 `index.d.mts`（缺失会让下游在 `moduleResolution: node16/nodenext` 下报 TS1479）。
 
 ### 关键特性
-- **零外部依赖**: `typescript-result` 等依赖全部内联到 5 个 JS 产物，不带裸模块说明符
+- **零外部依赖**: 无运行时依赖，5 个 JS 产物与 `.d.ts` 均不带裸模块说明符
 - **ES2020 目标**: `vite.config.ts` 显式设置 `build.target: 'es2020'`，维持既有浏览器兼容承诺
 - **多格式支持**: CJS、ESM、IIFE、Worker文件
 - **独立Worker**: Worker文件可直接复制使用
@@ -190,7 +190,7 @@ const client = new TextRankUniversalClient('./worker.js', {
 ## 核心依赖
 
 ### 运行时依赖
-- `typescript-result@^3.5.2` - 函数式错误处理
+无。`Result` 类型由 `src/utils/result.ts` 内置实现。
 
 ### 开发依赖
 - `typescript@^7.0.2` - TypeScript编译器（Go 原生移植版）

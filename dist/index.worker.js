@@ -4137,465 +4137,34 @@ var SimpleJieba = class {
 };
 var jieba = new SimpleJieba();
 //#endregion
-//#region \0@oxc-project+runtime@0.147.0/helpers/esm/typeof.js
-function _typeof(o) {
-	"@babel/helpers - typeof";
-	return _typeof = "function" == typeof Symbol && "symbol" == typeof Symbol.iterator ? function(o) {
-		return typeof o;
-	} : function(o) {
-		return o && "function" == typeof Symbol && o.constructor === Symbol && o !== Symbol.prototype ? "symbol" : typeof o;
-	}, _typeof(o);
-}
-//#endregion
-//#region \0@oxc-project+runtime@0.147.0/helpers/esm/toPrimitive.js
-function toPrimitive(t, r) {
-	if ("object" != _typeof(t) || !t) return t;
-	var e = t[Symbol.toPrimitive];
-	if (void 0 !== e) {
-		var i = e.call(t, r || "default");
-		if ("object" != _typeof(i)) return i;
-		throw new TypeError("@@toPrimitive must return a primitive value.");
-	}
-	return ("string" === r ? String : Number)(t);
-}
-//#endregion
-//#region \0@oxc-project+runtime@0.147.0/helpers/esm/toPropertyKey.js
-function toPropertyKey(t) {
-	var i = toPrimitive(t, "string");
-	return "symbol" == _typeof(i) ? i : i + "";
-}
-//#endregion
-//#region \0@oxc-project+runtime@0.147.0/helpers/esm/defineProperty.js
-function _defineProperty(e, r, t) {
-	return (r = toPropertyKey(r)) in e ? Object.defineProperty(e, r, {
-		value: t,
-		enumerable: !0,
-		configurable: !0,
-		writable: !0
-	}) : e[r] = t, e;
-}
-//#endregion
-//#region node_modules/.pnpm/typescript-result@3.5.2/node_modules/typescript-result/dist/index.js
-function isPromise(value) {
-	if (value === null || value === void 0) return false;
-	if (typeof value !== "object") return false;
-	return value instanceof Promise || "then" in value;
-}
-function isFunction(value) {
-	return typeof value === "function";
-}
-function isAsyncFn(fn) {
-	return fn.constructor.name === "AsyncFunction";
-}
-function isGenerator(obj) {
-	return typeof obj === "object" && obj !== null && typeof obj.next === "function" && typeof obj.throw === "function" && typeof obj.return === "function" && typeof obj[Symbol.iterator] === "function" && obj[Symbol.iterator]() === obj;
-}
-function isAsyncGenerator(obj) {
-	return typeof obj === "object" && obj !== null && typeof obj.next === "function" && typeof obj.throw === "function" && typeof obj.return === "function" && typeof obj[Symbol.asyncIterator] === "function" && obj[Symbol.asyncIterator]() === obj;
-}
-var NonExhaustiveError = class extends Error {
-	constructor(error) {
-		super("Not all error cases were handled");
+//#region src/utils/result.ts
+var ResultImpl = class ResultImpl {
+	constructor(ok, value, error) {
+		this.ok = ok;
+		this.value = value;
 		this.error = error;
-	}
-};
-var Matcher = class {
-	constructor(error) {
-		_defineProperty(this, "cases", []);
-		_defineProperty(this, "defaultHandler", void 0);
-		_defineProperty(this, "else", (handler) => {
-			if (this.defaultHandler) throw new Error("already registered an 'else' handler");
-			this.defaultHandler = handler;
-			return this;
-		});
-		_defineProperty(this, "run", () => {
-			const isAsync = this.cases.some((item) => isAsyncFn(item.handler));
-			for (const item of this.cases) if (isFunction(item.value) && this.error instanceof item.value || item.value === this.error) {
-				const value = item.handler(this.error);
-				return isPromise(value) ? value : isAsync ? Promise.resolve(value) : value;
-			}
-			if (this.defaultHandler) return this.defaultHandler(this.error);
-			throw new NonExhaustiveError(this.error);
-		});
-		this.error = error;
-	}
-	when(value, ...args) {
-		const cases = [value, ...args.slice(0, -1)];
-		const handler = args.at(-1);
-		this.cases.push(...cases.map((value2) => ({
-			value: value2,
-			handler
-		})));
-		return this;
-	}
-};
-var AsyncResult = class _AsyncResult extends Promise {
-	constructor(executor) {
-		super(executor);
-	}
-	*[Symbol.iterator]() {
-		return yield this;
-	}
-	get isAsyncResult() {
-		return true;
-	}
-	async toTuple() {
-		return (await this).toTuple();
-	}
-	async errorOrNull() {
-		return (await this).errorOrNull();
-	}
-	async getOrNull() {
-		return (await this).getOrNull();
-	}
-	async getOrDefault(defaultValue) {
-		return (await this).getOrDefault(defaultValue);
-	}
-	async getOrElse(onFailure) {
-		return (await this).getOrElse(onFailure);
-	}
-	async getOrThrow() {
-		return (await this).getOrThrow();
-	}
-	async fold(onSuccess, onFailure) {
-		return (await this).fold(onSuccess, onFailure);
-	}
-	onFailure(action) {
-		return new _AsyncResult((resolve, reject) => this.then(async (result) => {
-			try {
-				if (!result.ok) await action(result.error);
-				resolve(result);
-			} catch (e) {
-				reject(e);
-			}
-		}).catch(reject));
-	}
-	onSuccess(action) {
-		return new _AsyncResult((resolve, reject) => this.then(async (result) => {
-			try {
-				if (result.ok) await action(result.value);
-				resolve(result);
-			} catch (error) {
-				reject(error);
-			}
-		}).catch(reject));
-	}
-	map(transform) {
-		return new _AsyncResult((resolve, reject) => {
-			this.then(async (result) => resolve(await result.map(transform))).catch(reject);
-		});
-	}
-	mapCatching(transformValue, transformError) {
-		return new _AsyncResult((resolve, reject) => {
-			this.map(transformValue).then((result) => resolve(result)).catch((error) => {
-				try {
-					resolve(ResultFactory.error(transformError ? transformError(error) : error));
-				} catch (err) {
-					reject(err);
-				}
-			});
-		});
-	}
-	mapError(transform) {
-		return new _AsyncResult((resolve, reject) => this.then(async (result) => {
-			try {
-				resolve(result.mapError(transform));
-			} catch (error) {
-				reject(error);
-			}
-		}).catch(reject));
-	}
-	recover(onFailure) {
-		return new _AsyncResult((resolve, reject) => this.then(async (result) => {
-			try {
-				resolve(await result.recover(onFailure));
-			} catch (error) {
-				reject(error);
-			}
-		}).catch(reject));
-	}
-	recoverCatching(onFailure, transformError) {
-		return new _AsyncResult((resolve, reject) => this.then((result) => {
-			resolve(result.recoverCatching(onFailure, transformError));
-		}).catch(reject));
-	}
-	toString() {
-		return "AsyncResult";
-	}
-	static error(error) {
-		return new _AsyncResult((resolve) => resolve(ResultFactory.error(error)));
-	}
-	static ok(value) {
-		return new _AsyncResult((resolve) => resolve(ResultFactory.ok(value)));
-	}
-	static fromPromise(promise) {
-		return new _AsyncResult((resolve, reject) => {
-			promise.then((value) => resolve(ResultFactory.isResult(value) ? value : ResultFactory.ok(value))).catch(reject);
-		});
-	}
-	static fromPromiseCatching(promise, transform) {
-		return new _AsyncResult((resolve, reject) => {
-			promise.then((value) => resolve(ResultFactory.isResult(value) ? value : ResultFactory.ok(value))).catch((caughtError) => {
-				resolve(ResultFactory.error(transform?.(caughtError) ?? caughtError));
-			}).catch(reject);
-		});
-	}
-};
-var Result = class {
-	constructor(_value, _error) {
-		this._value = _value;
-		this._error = _error;
-	}
-	*[Symbol.iterator]() {
-		return yield this;
-	}
-	get isResult() {
-		return true;
-	}
-	get value() {
-		return this._value;
-	}
-	get error() {
-		return this._error;
-	}
-	get success() {
-		return this.error === void 0;
-	}
-	get failure() {
-		return this.error !== void 0;
-	}
-	get ok() {
-		return this.success;
 	}
 	isOk() {
-		return this.success;
+		return this.ok;
 	}
 	isError() {
-		return this.failure;
+		return !this.ok;
 	}
-	toTuple() {
-		return [this._value ?? null, this._error ?? null];
-	}
-	errorOrNull() {
-		return this.failure ? this._error : null;
-	}
-	getOrNull() {
-		return this.success ? this._value : null;
+	map(fn) {
+		return this.ok ? new ResultImpl(true, fn(this.value), void 0) : this;
 	}
 	getOrDefault(defaultValue) {
-		return this.success ? this._value : defaultValue;
-	}
-	getOrElse(onFailure) {
-		if (isAsyncFn(onFailure)) return this.success ? Promise.resolve(this._value) : onFailure(this._error);
-		return this.success ? this._value : onFailure(this._error);
-	}
-	getOrThrow() {
-		if (this.success) return this._value;
-		throw this._error;
-	}
-	fold(onSuccess, onFailure) {
-		const isAsync = isAsyncFn(onSuccess) || isAsyncFn(onFailure);
-		const outcome = this.success ? onSuccess(this._value) : onFailure(this._error);
-		return isAsync && !isPromise(outcome) ? Promise.resolve(outcome) : outcome;
-	}
-	match() {
-		return this.failure ? new Matcher(this._error) : void 0;
-	}
-	onFailure(action) {
-		const isAsync = isAsyncFn(action);
-		if (this.failure) {
-			const outcome = action(this._error);
-			if (isAsync) return new AsyncResult((resolve) => {
-				outcome.then(() => resolve(ResultFactory.error(this._error)));
-			});
-			return this;
-		}
-		return isAsync ? AsyncResult.ok(this._value) : this;
-	}
-	onSuccess(action) {
-		const isAsync = isAsyncFn(action);
-		if (this.success) {
-			const outcome = action(this._value);
-			if (isAsync) return new AsyncResult((resolve) => {
-				outcome.then(() => resolve(ResultFactory.ok(this._value)));
-			});
-			return this;
-		}
-		return isAsync ? AsyncResult.error(this._error) : this;
-	}
-	map(transform) {
-		return this.success ? ResultFactory.run(() => transform(this._value)) : isAsyncFn(transform) ? AsyncResult.error(this._error) : this;
-	}
-	mapCatching(transformValue, transformError) {
-		return this.success ? ResultFactory.try(() => transformValue(this._value), transformError) : this;
-	}
-	mapError(transform) {
-		if (this.success) return this;
-		return ResultFactory.error(transform(this._error));
-	}
-	recover(onFailure) {
-		return this.success ? isAsyncFn(onFailure) ? AsyncResult.ok(this._value) : this : ResultFactory.run(() => onFailure(this._error));
-	}
-	recoverCatching(onFailure, transformError) {
-		return this.success ? isAsyncFn(onFailure) ? AsyncResult.ok(this._value) : this : ResultFactory.try(() => onFailure(this._error), transformError);
-	}
-	toString() {
-		if (this.success) return `Result.ok(${this._value})`;
-		return `Result.error(${this.error})`;
+		return this.ok ? this.value : defaultValue;
 	}
 };
-var ResultFactory = class _ResultFactory {
-	constructor() {}
-	static ok(value) {
-		return new Result(value, void 0);
-	}
-	static error(error) {
-		return new Result(void 0, error);
-	}
-	static isResult(possibleResult) {
-		return possibleResult instanceof Result;
-	}
-	static isAsyncResult(possibleAsyncResult) {
-		return possibleAsyncResult instanceof AsyncResult;
-	}
-	static run(fn) {
-		const returnValue = fn();
-		if (isGenerator(returnValue) || isAsyncGenerator(returnValue)) return _ResultFactory.handleGenerator(returnValue);
-		if (isPromise(returnValue)) return AsyncResult.fromPromise(returnValue);
-		return _ResultFactory.isResult(returnValue) ? returnValue : _ResultFactory.ok(returnValue);
-	}
-	static allInternal(items, opts) {
-		const runner = opts.catching ? _ResultFactory.try : _ResultFactory.run;
-		const flattened = [];
-		let isAsync = items.some(isPromise);
-		let hasFailure = false;
-		for (const item of items) if (isFunction(item)) {
-			if (hasFailure) continue;
-			const returnValue = runner(item);
-			if (_ResultFactory.isResult(returnValue) && !returnValue.ok) {
-				hasFailure = true;
-				if (!isAsync) return returnValue;
-			}
-			if (_ResultFactory.isAsyncResult(returnValue)) isAsync = true;
-			flattened.push(returnValue);
-		} else if (_ResultFactory.isResult(item)) {
-			if (!item.ok) {
-				hasFailure = true;
-				if (!isAsync) return item;
-			}
-			flattened.push(item);
-		} else if (_ResultFactory.isAsyncResult(item)) {
-			isAsync = true;
-			flattened.push(item);
-		} else if (isPromise(item)) {
-			isAsync = true;
-			flattened.push(opts.catching ? AsyncResult.fromPromiseCatching(item) : AsyncResult.fromPromise(item));
-		} else flattened.push(_ResultFactory.ok(item));
-		if (isAsync) return new AsyncResult((resolve, reject) => {
-			const asyncResults = [];
-			const asyncIndexes = [];
-			for (let i = 0; i < flattened.length; i++) {
-				const item = flattened[i];
-				if (_ResultFactory.isAsyncResult(item)) {
-					asyncResults.push(item);
-					asyncIndexes.push(i);
-				}
-			}
-			Promise.all(asyncResults).then((resolvedResults) => {
-				const merged = [...flattened];
-				for (let i = 0; i < resolvedResults.length; i++) merged[asyncIndexes[i]] = resolvedResults[i];
-				const firstFailedResult = merged.find((resolvedResult) => !resolvedResult.ok);
-				if (firstFailedResult) {
-					resolve(firstFailedResult);
-					return;
-				}
-				resolve(_ResultFactory.ok(merged.map((result) => result.getOrNull())));
-			}).catch((reason) => {
-				reject(reason);
-			});
-		});
-		return _ResultFactory.ok(flattened.map((result) => result.getOrNull()));
-	}
-	static all(...items) {
-		return _ResultFactory.allInternal(items, { catching: false });
-	}
-	static allCatching(...items) {
-		return _ResultFactory.allInternal(items, { catching: true });
-	}
-	static wrap(fn, transformError) {
-		return function wrapped(...args) {
-			return _ResultFactory.try(() => fn(...args), transformError);
-		};
-	}
-	static try(fn, transform) {
-		try {
-			const returnValue = fn();
-			if (isGenerator(returnValue)) return _ResultFactory.handleGenerator(returnValue);
-			if (isAsyncGenerator(returnValue)) {
-				const asyncResult = _ResultFactory.handleGenerator(returnValue);
-				return AsyncResult.fromPromiseCatching(asyncResult, transform);
-			}
-			if (isPromise(returnValue)) return AsyncResult.fromPromiseCatching(returnValue, transform);
-			return _ResultFactory.isResult(returnValue) ? returnValue : _ResultFactory.ok(returnValue);
-		} catch (caughtError) {
-			return _ResultFactory.error(transform?.(caughtError) ?? caughtError);
-		}
-	}
-	static fromAsync(valueOrFn) {
-		return _ResultFactory.run(typeof valueOrFn === "function" ? valueOrFn : () => valueOrFn);
-	}
-	static fromAsyncCatching(valueOrFn, transformError) {
-		return _ResultFactory.try(typeof valueOrFn === "function" ? valueOrFn : () => valueOrFn, transformError);
-	}
-	static handleGenerator(it) {
-		function handleResult(result2) {
-			if (!result2.ok) return iterate(it.return(result2));
-			return iterate(it.next(result2.value));
-		}
-		function handleStep(step) {
-			if (step.done) {
-				if (step.value instanceof Result || step.value instanceof AsyncResult) return step.value;
-				return _ResultFactory.ok(step.value);
-			}
-			if (step.value instanceof Result) return handleResult(step.value);
-			if (step.value instanceof AsyncResult) return step.value.then(handleResult);
-			return iterate(it.next(step.value));
-		}
-		function iterate(iteratorResult) {
-			return isPromise(iteratorResult) ? iteratorResult.then(handleStep) : handleStep(iteratorResult);
-		}
-		const result = iterate(it.next());
-		return isPromise(result) ? AsyncResult.fromPromise(result) : result;
-	}
-	static gen(generatorOrSelfOrFn, fn) {
-		const it = isGenerator(generatorOrSelfOrFn) || isAsyncGenerator(generatorOrSelfOrFn) ? generatorOrSelfOrFn : typeof generatorOrSelfOrFn === "function" ? generatorOrSelfOrFn() : fn?.apply(generatorOrSelfOrFn);
-		return _ResultFactory.handleGenerator(it);
-	}
-	static genCatching(generatorOrSelfOrFn, transformValueOrError, transformError) {
-		const isGen = isGenerator(generatorOrSelfOrFn) || isAsyncGenerator(generatorOrSelfOrFn);
-		const self = typeof generatorOrSelfOrFn === "function" || isGen ? void 0 : generatorOrSelfOrFn;
-		const tValue = typeof generatorOrSelfOrFn === "function" ? generatorOrSelfOrFn : transformValueOrError;
-		const tError = typeof generatorOrSelfOrFn === "function" || isGen ? transformValueOrError : transformError;
-		try {
-			const it = isGen ? generatorOrSelfOrFn : self ? tValue.apply(generatorOrSelfOrFn) : tValue();
-			const result = _ResultFactory.handleGenerator(it);
-			if (_ResultFactory.isAsyncResult(result)) return result.catch((error) => AsyncResult.error(tError?.(error) ?? error));
-			return result;
-		} catch (error) {
-			return _ResultFactory.error(tError?.(error) ?? error);
-		}
-	}
-	static assertOk(result) {
-		if (!result.ok) throw new Error("Expected a successful result, but got an error instead");
-	}
-	static assertError(result) {
-		if (result.ok) throw new Error("Expected a failed result, but got a value instead");
-	}
-	static [Symbol.hasInstance](instance) {
-		return instance instanceof Result;
+var Result = {
+	ok(value) {
+		return new ResultImpl(true, value, void 0);
+	},
+	error(error) {
+		return new ResultImpl(false, void 0, error);
 	}
 };
-var Result2 = ResultFactory;
 //#endregion
 //#region src/utils/result-helpers.ts
 /**
@@ -4618,13 +4187,19 @@ function createError(type, message, cause, context) {
 * 创建成功的 Result
 */
 function ok(value) {
-	return Result2.ok(value);
+	return Result.ok(value);
+}
+/**
+* 创建失败的 Result
+*/
+function err(error) {
+	return Result.error(error);
 }
 /**
 * 创建失败的 Result （简化版）
 */
 function errOf(type, message, cause, context) {
-	return Result2.error(createError(type, message, cause, context));
+	return Result.error(createError(type, message, cause, context));
 }
 /**
 * 安全执行同步函数，返回 Result
@@ -4632,9 +4207,9 @@ function errOf(type, message, cause, context) {
 function safeSync(fn, errorType = ErrorType.COMPUTATION_ERROR, context) {
 	try {
 		const result = fn();
-		return Result2.ok(result);
+		return Result.ok(result);
 	} catch (error) {
-		return Result2.error(createError(errorType, error instanceof Error ? error.message : String(error), error instanceof Error ? error : void 0, context));
+		return Result.error(createError(errorType, error instanceof Error ? error.message : String(error), error instanceof Error ? error : void 0, context));
 	}
 }
 /**
@@ -4643,9 +4218,9 @@ function safeSync(fn, errorType = ErrorType.COMPUTATION_ERROR, context) {
 async function safeAsync(fn, errorType = ErrorType.COMPUTATION_ERROR, context) {
 	try {
 		const result = await fn();
-		return Result2.ok(result);
+		return Result.ok(result);
 	} catch (error) {
-		return Result2.error(createError(errorType, error instanceof Error ? error.message : String(error), error instanceof Error ? error : void 0, context));
+		return Result.error(createError(errorType, error instanceof Error ? error.message : String(error), error instanceof Error ? error : void 0, context));
 	}
 }
 /**
@@ -4661,7 +4236,7 @@ function validateInput(text, minLength = 1) {
 		length: text.trim().length,
 		minLength
 	});
-	return Result2.ok(text.trim());
+	return Result.ok(text.trim());
 }
 //#endregion
 //#region src/core/segmentation.ts
@@ -4699,7 +4274,7 @@ var WordSegmentation = class {
 			debug("分词器初始化失败，使用 fallback 分词器");
 			this.jieba = this.createFallbackSegmenter();
 		}
-		return Result2.ok(void 0);
+		return Result.ok(void 0);
 	}
 	/**
 	* 创建fallback分词器
@@ -5314,11 +4889,11 @@ var AsyncAnalysisExecutor = class {
 		const reportProgress = this.createProgressReporter(config.onProgress);
 		try {
 			const segmentationResult = await this.executeSegmentation(phases.segmentation, config, reportProgress);
-			if (!segmentationResult.ok) return segmentationResult;
+			if (!segmentationResult.ok) return err(segmentationResult.error);
 			const graphResult = await this.executeGraphBuilding(phases.graphBuilding, config, reportProgress, options?.itemCount);
-			if (!graphResult.ok) return graphResult;
+			if (!graphResult.ok) return err(graphResult.error);
 			const pageRankResult = await this.executePageRank(phases.pageRank, config, reportProgress, options?.maxIterations);
-			if (!pageRankResult.ok) return pageRankResult;
+			if (!pageRankResult.ok) return err(pageRankResult.error);
 			const sortingResult = await this.executeSorting(phases.sorting, config, reportProgress);
 			if (!sortingResult.ok) return sortingResult;
 			reportProgress("complete", 100, "分析完成");
@@ -5386,7 +4961,7 @@ var TextRankKeyword = class {
 		const validationResult = validateInput(text);
 		if (validationResult.isError()) {
 			const error = validationResult.error;
-			return Result2.error({
+			return Result.error({
 				...error,
 				context: {
 					...error.context,
@@ -5476,7 +5051,7 @@ var TextRankKeyword = class {
 	getWordSource(source) {
 		if (!this.segmentationResult) return errOf(ErrorType.VALIDATION_ERROR, "请先调用 analyze 方法", void 0, { source });
 		const segmentationResult = this.segmentationResult;
-		return Result2.ok((() => {
+		return Result.ok((() => {
 			switch (source) {
 				case "no_filter": return segmentationResult.wordsNoFilter;
 				case "no_stop_words": return segmentationResult.wordsNoStopWords;
@@ -5571,7 +5146,7 @@ var TextRankSentence = class {
 		const validationResult = validateInput(text);
 		if (validationResult.isError()) {
 			const error = validationResult.error;
-			return Result2.error({
+			return Result.error({
 				...error,
 				context: {
 					...error.context,
@@ -5610,7 +5185,7 @@ var TextRankSentence = class {
 		const validationResult = validateInput(text);
 		if (validationResult.isError()) {
 			const error = validationResult.error;
-			return Result2.error({
+			return Result.error({
 				...error,
 				context: {
 					...error.context,
@@ -5731,7 +5306,7 @@ var TextRankSentence = class {
 		const validationResult = validateInput(text);
 		if (validationResult.isError()) {
 			const error = validationResult.error;
-			return Result2.error({
+			return Result.error({
 				...error,
 				context: {
 					...error.context,
@@ -5763,7 +5338,7 @@ var TextRankSentence = class {
 		const validationResult = validateInput(text);
 		if (validationResult.isError()) {
 			const error = validationResult.error;
-			return Result2.error({
+			return Result.error({
 				...error,
 				context: {
 					...error.context,

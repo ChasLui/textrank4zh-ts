@@ -2,7 +2,7 @@
  * 测试辅助函数
  */
 
-import type { Result } from 'typescript-result';
+import type { Err } from '../src/utils/result';
 import type { TextRankResult, TextRankError } from '../src/types';
 
 /**
@@ -10,9 +10,7 @@ import type { TextRankResult, TextRankError } from '../src/types';
  */
 export function expectResultOk<T>(
   result: TextRankResult<T>
-  // 不用 asserts 签名：Result.Ok<T> 实为 Result<T, never>，不是 Result<T, TextRankError>
-  // 的子类型，会触发 TS2677。此处的收窄无调用方依赖（仅 safeAnalyze 使用且不读 value），
-  // 需要收窄的场景请直接用 result.isOk()。
+  // 不用 asserts 签名：无调用方依赖收窄（仅 safeAnalyze 使用且不读 value）
 ): void {
   expect(result.ok).toBe(true);
   if (result.isError()) {
@@ -25,7 +23,7 @@ export function expectResultOk<T>(
  */
 export function expectResultErr<T>(
   result: TextRankResult<T>
-): asserts result is Result.Error<TextRankError> {
+): asserts result is Err<T, TextRankError> {
   expect(result.ok).toBe(false);
   if (result.ok) {
     throw new Error('Expected Err, got Ok');

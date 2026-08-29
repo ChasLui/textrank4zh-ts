@@ -1,5 +1,3 @@
-import { Result } from 'typescript-result';
-
 export declare type AdjacencyMatrix = number[][];
 
 export declare interface AnalysisProgress {
@@ -97,6 +95,12 @@ export declare const DEFAULT_CONFIG: {
     };
 };
 
+export declare interface Err<T, E> extends ResultOps<T, E> {
+    readonly ok: false;
+    readonly value: undefined;
+    readonly error: E;
+}
+
 export declare function err<T>(error: TextRankError): TextRankResult<T>;
 
 export declare function errOf<T>(type: ErrorType, message: string, cause?: Error, context?: Record<string, unknown>): TextRankResult<T>;
@@ -159,6 +163,12 @@ export declare const mainThreadScheduler: MainThreadScheduler;
 
 export declare function mapResult<T, U>(result: TextRankResult<T>, mapper: (value: T) => U): TextRankResult<U>;
 
+export declare interface Ok<T, E> extends ResultOps<T, E> {
+    readonly ok: true;
+    readonly value: T;
+    readonly error: undefined;
+}
+
 export declare function ok<T>(value: T): TextRankResult<T>;
 
 export declare function pageRank(adjacencyMatrix: AdjacencyMatrix, config?: PageRankConfig): PageRankResult;
@@ -175,6 +185,20 @@ export declare interface PageRankResult {
 }
 
 export declare type ProgressCallback = (progress: AnalysisProgress) => void;
+
+export declare type Result<T, E> = Ok<T, E> | Err<T, E>;
+
+export declare const Result: {
+    ok<T, E = never>(value: T): Result<T, E>;
+    error<E, T = never>(error: E): Result<T, E>;
+};
+
+export declare interface ResultOps<T, E> {
+    isOk(): this is Ok<T, E> & this;
+    isError(): this is Err<T, E> & this;
+    map<U>(fn: (value: T) => U): Result<U, E>;
+    getOrDefault<D>(defaultValue: D): T | D;
+}
 
 export declare function safeAsync<T>(fn: () => Promise<T>, errorType?: ErrorType, context?: Record<string, unknown>): AsyncTextRankResult<T>;
 

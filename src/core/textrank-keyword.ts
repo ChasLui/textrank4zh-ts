@@ -13,7 +13,7 @@ import { Segmentation } from './segmentation';
 import { sortWords, debug } from '../utils';
 import { safeSync, errOf, validateInput } from '../utils/result-helpers';
 import { AsyncAnalysisExecutor } from '../utils/async-analysis';
-import { Result } from 'typescript-result';
+import { Result } from '../utils/result';
 
 /**
  * TextRank 关键词提取类

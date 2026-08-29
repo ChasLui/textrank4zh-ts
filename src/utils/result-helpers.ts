@@ -3,7 +3,7 @@
  * 提供统一的错误处理和 Result 操作方法
  */
 
-import { Result } from 'typescript-result';
+import { Result } from './result';
 import type { TextRankError, TextRankResult, AsyncTextRankResult } from '../types';
 import { ErrorType } from '../types';
 
@@ -152,11 +152,9 @@ export function combineResults<T>(results: TextRankResult<T>[]): TextRankResult<
 
   for (const result of results) {
     if (result.isError()) {
-      return result;
+      return err(result.error);
     }
-    // typescript-result 的 value 是条件类型 `[T] extends [never] ? undefined : T`，
-    // 在泛型上下文中无法化简为 T，这里必须保留断言（守卫已确保非空）
-    values.push(result.value!);
+    values.push(result.value);
   }
 
   return Result.ok(values);
@@ -180,10 +178,9 @@ export function chainResult<T, U>(
   chainer: (value: T) => TextRankResult<U>
 ): TextRankResult<U> {
   if (result.isOk()) {
-    // 同上：泛型下条件类型无法化简，守卫已确保非空
-    return chainer(result.value!);
+    return chainer(result.value);
   } else {
-    return result as TextRankResult<U>;
+    return err(result.error);
   }
 }
 
@@ -216,8 +213,7 @@ export function handleResult<T, U>(
   onErr: (error: TextRankError) => U
 ): U {
   if (result.isOk()) {
-    // 同上：泛型下条件类型无法化简，守卫已确保非空
-    return onOk(result.value!);
+    return onOk(result.value);
   } else {
     return onErr(result.error);
   }

@@ -1,5 +1,5 @@
-// 导入 typescript-result 类型
-import type { Result } from 'typescript-result';
+// 导入内置 Result 类型
+import type { Result } from '../utils/result';
 
 /**
  * 自定义错误类型

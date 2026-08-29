@@ -332,25 +332,6 @@
         </div>
     </div>
 
-    <!-- 提供 typescript-result 兼容实现 -->
-    <script>
-        window.typescriptResult = {
-            Result: class Result {
-                constructor(ok, value, error) {
-                    this.ok = ok;
-                    this.value = value;
-                    this.error = error;
-                }
-                static ok(value) { return new this(true, value, null); }
-                static error(error) { return new this(false, null, error); }
-                isOk() { return this.ok; }
-                isErr() { return !this.ok; }
-            },
-            ok: (value) => window.typescriptResult.Result.ok(value),
-            err: (error) => window.typescriptResult.Result.error(error)
-        };
-    </script>
-    
     <!-- 从 jsDelivr CDN 加载 IIFE 版本 (npm 包) -->
     <script src="https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.iife.js"></script>
     <script src="./demo-cdn.js"></script>
