@@ -6,6 +6,9 @@ on:
     # 忽略release commit，避免循环触发
     paths-ignore:
       - 'CHANGELOG.md'
+  # 手动触发：用于补发失败的发布，或让 npm / GitHub Packages 的包页面
+  # 同步最新 README（包页面读的是 tarball 内的副本，只能靠发版更新）。
+  workflow_dispatch:
 
 # 为GitHub Actions bot赋予必要权限
 permissions:
@@ -41,6 +44,14 @@ jobs:
           echo "commit-message=$COMMIT_MSG" >> $GITHUB_OUTPUT
           echo "Latest commit message: $COMMIT_MSG"
           
+          # 手动触发时直接放行，不看 commit 前缀；版本级别仍由 release-it
+          # 依据全部未发布 commit 推断。
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should-release=true" >> $GITHUB_OUTPUT
+            echo "🖐 Manually dispatched, proceeding to release"
+            exit 0
+          fi
+
           # 检查是否是release commit，如果是则跳过
           if [[ "$COMMIT_MSG" =~ ^chore:\ release\ v[0-9]+\.[0-9]+\.[0-9]+ ]]; then
             echo "This is a release commit, skipping auto-release"
