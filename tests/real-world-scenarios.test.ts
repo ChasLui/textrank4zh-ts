@@ -22,7 +22,6 @@ describe('真实业务场景测试', () => {
       tr4w.analyze(productDescription, {
         lower: false, // 保持原始大小写，如"5G"
         window: 2,
-        minWordLen: 1,
       });
 
       const keywords = tr4w.getKeywords(12, 1);
@@ -182,17 +181,6 @@ describe('真实业务场景测试', () => {
       });
 
       const keywords = tr4w.getKeywords(8, 1);
-      const keywordTexts = keywords.map((k) => k.word);
-
-      // 应该包含体验相关词汇
-      const hasExperienceWords = keywordTexts.some(
-        (word) =>
-          word.includes('咖啡') ||
-          word.includes('味道') ||
-          word.includes('服务') ||
-          word.includes('环境') ||
-          word.includes('推荐')
-      );
 
       expect(keywords.length).toBeGreaterThan(0);
     });
@@ -223,8 +211,9 @@ describe('真实业务场景测试', () => {
       }
 
       // 技术类文档应该包含技术相关字符（适应轻量级分词器）
-      const techWords = results.tech;
-      const hasTechTerms = techWords.some(
+      const techWords = results['tech'];
+      expect(techWords).toBeDefined();
+      const hasTechTerms = techWords?.some(
         (word) =>
           word.includes('智') ||
           word.includes('学') ||
@@ -238,8 +227,9 @@ describe('真实业务场景测试', () => {
       expect(hasTechTerms).toBe(true);
 
       // 金融类文档应该包含金融词汇（适应轻量级分词器）
-      const financeWords = results.finance;
-      const hasFinanceTerms = financeWords.some(
+      const financeWords = results['finance'];
+      expect(financeWords).toBeDefined();
+      const hasFinanceTerms = financeWords?.some(
         (word) =>
           word.includes('银行') ||
           word.includes('股市') ||
@@ -262,8 +252,9 @@ describe('真实业务场景测试', () => {
       expect(hasFinanceTerms).toBe(true);
 
       // 体育类文档应该包含体育词汇（适应轻量级分词器）
-      const sportsWords = results.sports;
-      const hasSportsTerms = sportsWords.some(
+      const sportsWords = results['sports'];
+      expect(sportsWords).toBeDefined();
+      const hasSportsTerms = sportsWords?.some(
         (word) =>
           word.includes('足球') ||
           word.includes('球') ||
@@ -284,9 +275,9 @@ describe('真实业务场景测试', () => {
       expect(hasSportsTerms).toBe(true);
 
       // 不同类别的关键词应该有显著差异
-      expect(results.tech).not.toEqual(results.finance);
-      expect(results.finance).not.toEqual(results.health);
-      expect(results.health).not.toEqual(results.sports);
+      expect(results['tech']).not.toEqual(results['finance']);
+      expect(results['finance']).not.toEqual(results['health']);
+      expect(results['health']).not.toEqual(results['sports']);
     });
   });
 

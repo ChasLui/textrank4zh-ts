@@ -218,10 +218,12 @@ describe('性能基准测试', () => {
 
       // 迭代次数越多，时间应该越长（但由于测试环境的不确定性，可能存在波动）
       // 这里只验证最后一个（最多迭代）的时间相对合理
-      expect(results[results.length - 1].duration).toBeGreaterThan(0);
+      const slowest = results[results.length - 1];
+      expect(slowest).toBeDefined();
+      expect(slowest?.duration).toBeGreaterThan(0);
 
       // 但即使是最大迭代次数，也应该在合理时间内完成
-      expect(results[results.length - 1].duration).toBeLessThan(perfBudget(500));
+      expect(slowest?.duration).toBeLessThan(perfBudget(500));
     });
   });
 

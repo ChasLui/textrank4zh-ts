@@ -49,7 +49,13 @@ describe('TextRank4ZH-TS 集成测试', () => {
 
       // 权重应该递减
       for (let i = 1; i < keywords.length; i++) {
-        expect(keywords[i - 1].weight).toBeGreaterThanOrEqual(keywords[i].weight);
+        const prev = keywords[i - 1];
+        const current = keywords[i];
+        expect(prev).toBeDefined();
+        expect(current).toBeDefined();
+        if (prev && current) {
+          expect(prev.weight).toBeGreaterThanOrEqual(current.weight);
+        }
       }
     });
 

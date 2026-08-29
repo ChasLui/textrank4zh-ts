@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, expect, beforeEach } from 'vitest';
 import { Segmentation, WordSegmentation, SentenceSegmentation } from '../src/core/segmentation';
 
 describe('SentenceSegmentation', () => {

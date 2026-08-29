@@ -1,0 +1,18 @@
+{
+  // 测试代码的类型检查配置。
+  // 主 tsconfig.json 的 include 只有 src/**/*（构建产物不应包含测试），
+  // 导致 tests/ 既躲过 tsc 也躲过 vitest（后者不做类型检查），
+  // 真实类型错误会一直潜伏——本文件补上这个缺口。
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    // 覆盖主配置的 ./src，否则 tests/ 会报 "not under rootDir"
+    "rootDir": ".",
+    // test-helpers.ts 依赖全局 expect（vitest.config.ts 里 globals: true）
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*", "tests/**/*"],
+  // 必须覆盖：主配置的 exclude 含 "tests"，而 exclude 优先于 include，
+  // 继承下来会让本配置一个测试文件都检查不到（静默空跑）
+  "exclude": ["node_modules", "dist"]
+}

@@ -1,6 +1,5 @@
 import { TextRankKeyword } from '../src/core/textrank-keyword';
-import { KeywordItem } from '../src/types';
-import { safeAnalyze, arraysEqual } from './test-helpers';
+import { safeAnalyze } from './test-helpers';
 
 describe('TextRankKeyword', () => {
   let textRankKeyword: TextRankKeyword;
@@ -19,10 +18,13 @@ describe('TextRankKeyword', () => {
     const keywords = textRankKeyword.getKeywords(5);
 
     expect(keywords.length).toBe(5);
-    expect(keywords[0]).toHaveProperty('word');
-    expect(keywords[0]).toHaveProperty('weight');
-    expect(typeof keywords[0].weight).toBe('number');
-    expect(keywords[0].weight).toBeGreaterThan(0);
+
+    const first = keywords[0];
+    expect(first).toBeDefined();
+    expect(first).toHaveProperty('word');
+    expect(first).toHaveProperty('weight');
+    expect(typeof first?.weight).toBe('number');
+    expect(first?.weight).toBeGreaterThan(0);
   });
 
   test('关键词应该按权重降序排列', () => {
@@ -30,7 +32,13 @@ describe('TextRankKeyword', () => {
     const keywords = textRankKeyword.getKeywords(10);
 
     for (let i = 1; i < keywords.length; i++) {
-      expect(keywords[i - 1].weight).toBeGreaterThanOrEqual(keywords[i].weight);
+      const prev = keywords[i - 1];
+      const current = keywords[i];
+      expect(prev).toBeDefined();
+      expect(current).toBeDefined();
+      if (prev && current) {
+        expect(prev.weight).toBeGreaterThanOrEqual(current.weight);
+      }
     }
   });
 
@@ -86,16 +94,6 @@ describe('TextRankKeyword', () => {
       edgeSource: 'all_filters',
     });
     const keywordsAllFilters = textRankKeyword.getKeywords(5);
-
-    // 不同词源可能产生不同的关键词集合或权重
-    const wordsNoStopWords = keywordsNoStopWords.map((k) => k.word);
-    const wordsAllFilters = keywordsAllFilters.map((k) => k.word);
-    const weightsNoStopWords = keywordsNoStopWords.map((k) => k.weight);
-    const weightsAllFilters = keywordsAllFilters.map((k) => k.weight);
-
-    // 检查词汇或权重分布是否有差异（容忍轻量级分词器的限制）
-    const hasWordDifference = !arraysEqual(wordsNoStopWords, wordsAllFilters);
-    const hasWeightDifference = !arraysEqual(weightsNoStopWords, weightsAllFilters, 0.001);
 
     // 由于轻量级分词器的限制，不同词源可能产生相同结果，这是可接受的
     // 至少应该能正常运行并产生结果
