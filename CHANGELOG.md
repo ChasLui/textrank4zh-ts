@@ -1,5 +1,23 @@
 # Changelog
 
+## [0.3.0](https://github.com/ChasLui/textrank4zh-ts/compare/v0.2.3...v0.3.0) (2026-08-29)
+
+### Features
+
+* 内置词表扩充至 2658 条，中文单字率大幅下降 ([f2d9cc7](https://github.com/ChasLui/textrank4zh-ts/commit/f2d9cc79d531607ff4ad1958671742693e657a5c))
+* 支持注入自定义分词器 ([2e90728](https://github.com/ChasLui/textrank4zh-ts/commit/2e9072824cc91a723a5c7330d69fda181037fe91))
+
+### Bug Fixes
+
+* 修复 Pages 演示的 jsDelivr CDN 404，改用 npm 路径 ([5ea8756](https://github.com/ChasLui/textrank4zh-ts/commit/5ea8756f43f77f903a04bc7c8bc5bd542c69f2bb))
+* 修复编解码与 Worker 三处缺陷，并按 Rust 式原则强化类型 ([77a0ec8](https://github.com/ChasLui/textrank4zh-ts/commit/77a0ec84a91de966a543b4362025b417f9cbdd39))
+* 修正 OIDC 发布的两处认证阻塞 ([71d9be2](https://github.com/ChasLui/textrank4zh-ts/commit/71d9be2451b64d5a42d81a77507df2da63d916a9))
+* 发布改用 npm Trusted Publisher (OIDC)，版本号按全部未发布 commit 推断 ([5dc4e24](https://github.com/ChasLui/textrank4zh-ts/commit/5dc4e24ddf78427c40ebf48f6048d054fc313392))
+
+### Performance Improvements
+
+* 内置词表提为模块级 Set，分词提速约 3 倍 ([ee5e1d9](https://github.com/ChasLui/textrank4zh-ts/commit/ee5e1d9817013b3273941170f3044fd999c413dd))
+
 ## [0.2.3](https://github.com/ChasLui/textrank4zh-ts/compare/v0.2.2...v0.2.3) (2025-09-11)
 
 ### Bug Fixes
