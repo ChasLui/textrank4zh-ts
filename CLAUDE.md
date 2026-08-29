@@ -47,7 +47,7 @@ TextRank4ZH-TS 是一个用 TypeScript 实现的 TextRank 算法库，专门用�
 
 ### 构建相关
 ```bash
-# 开发构建（带监听）
+# 开发构建（Vite 监听重建）
 npm run dev
 
 # 完整构建（所有格式）
@@ -57,7 +57,7 @@ npm run build
 npm run clean
 
 # 类型检查
-npx tsc --noEmit
+npm run typecheck
 ```
 
 ### 测试相关
@@ -80,11 +80,17 @@ npm run test:browser
 
 ### 代码质量
 ```bash
-# ESLint检查
+# oxlint 检查
 npm run lint
 
-# 代码格式化
+# oxlint 自动修复
+npm run lint:fix
+
+# oxfmt 格式化
 npm run format
+
+# oxfmt 格式检查（不写回）
+npm run format:check
 ```
 
 ### 发布相关
@@ -112,20 +118,25 @@ npm run serve
 
 ### 构建产物
 
-项目使用 `unbuild` 构建，生成多种格式：
+项目使用 `vite` 构建（内置 rolldown 打包器，配置见 `vite.config.ts`），类型声明由 `unplugin-dts` + `@microsoft/api-extractor` 生成，生成多种格式：
 
 ```
 dist/
 ├── index.cjs          # CommonJS (Node.js)
 ├── index.mjs          # ES Module (现代工具)
 ├── index.d.ts         # TypeScript类型定义
+├── index.d.cts        # CJS类型定义（node16/nodenext 解析用）
+├── index.d.mts        # ESM类型定义（node16/nodenext 解析用）
 ├── index.iife.js      # IIFE (浏览器直接引入)
 ├── index.worker.js    # DedicatedWorker独立文件
 └── index.sharedworker.js  # SharedWorker独立文件
 ```
 
+`build` 脚本依次执行三次 Vite 构建（默认 / `--mode worker` / `--mode sharedworker`），最后由 `build:dts-compat` 从 `index.d.ts` 复制出 `index.d.cts` 和 `index.d.mts`（缺失会让下游在 `moduleResolution: node16/nodenext` 下报 TS1479）。
+
 ### 关键特性
-- **零外部依赖**: 所有依赖内联到构建产物
+- **零外部依赖**: `typescript-result` 等依赖全部内联到 5 个 JS 产物，不带裸模块说明符
+- **ES2020 目标**: `vite.config.ts` 显式设置 `build.target: 'es2020'`，维持既有浏览器兼容承诺
 - **多格式支持**: CJS、ESM、IIFE、Worker文件
 - **独立Worker**: Worker文件可直接复制使用
 - **类型完整**: 包含完整TypeScript类型定义
@@ -133,7 +144,7 @@ dist/
 ## 测试系统
 
 ### 测试架构
-使用 Vitest 作为测试框架，包含89个测试用例：
+使用 Vitest 作为测试框架，9 个测试文件共 104 个测试用例：
 
 - `tests/integration.test.ts` - 集成测试
 - `tests/textrank-keyword.test.ts` - 关键词提取测试
@@ -143,6 +154,7 @@ dist/
 - `tests/performance.test.ts` - 性能基准测试
 - `tests/real-world-scenarios.test.ts` - 真实场景测试
 - `tests/utils.test.ts` - 工具函数测试
+- `tests/async-analysis.test.ts` - 异步分析测试
 
 ### 测试配置
 - **环境**: Node.js环境
@@ -181,11 +193,14 @@ const client = new TextRankUniversalClient('./worker.js', {
 - `typescript-result@^3.5.2` - 函数式错误处理
 
 ### 开发依赖
-- `typescript@^5.0.0` - TypeScript编译器
-- `unbuild@^2.0.0` - 构建工具
-- `vitest@^1.0.0` - 测试框架
-- `@typescript-eslint/*` - TypeScript ESLint
-- `prettier@^3.0.0` - 代码格式化
+- `typescript@^7.0.2` - TypeScript编译器（Go 原生移植版）
+- `@typescript/typescript6@^6.0.2` - dts 生成路径使用的 TS 6 编译器
+- `vite@^8.2.2` - 构建工具（内置 rolldown 打包器）
+- `unplugin-dts@^1.0.3` + `@microsoft/api-extractor@^7.59.0` - 类型声明生成与打包
+- `vitest@^4.1.11` - 测试框架
+- `oxlint@^1.80.0` - 代码检查
+- `oxfmt@^0.65.0` - 代码格式化
+- `release-it@^19.0.4` - 版本发布
 
 ## 项目特性
 
@@ -205,7 +220,7 @@ const client = new TextRankUniversalClient('./worker.js', {
 ### 开发体验
 - 完整TypeScript类型支持
 - 函数式错误处理
-- 89个测试用例保证质量
+- 104个测试用例保证质量
 - 多种使用示例
 - 详细的API文档
 
@@ -229,7 +244,7 @@ const client = new TextRankUniversalClient('./dist/index.worker.js');
 ```html
 <!-- 通过CDN使用 -->
 <script type="module">
-  import { TextRankKeyword } from 'https://unpkg.com/textrank4zh-ts@latest/dist/index.mjs';
+  import { TextRankKeyword } from 'https://cdn.jsdelivr.net/gh/ChasLui/textrank4zh-ts/dist/index.mjs';
 </script>
 ```
 
