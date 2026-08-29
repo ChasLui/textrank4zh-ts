@@ -845,6 +845,25 @@ if (typeof Worker === 'undefined') {
 }
 ```
 
+## 分词器
+
+库内置一份 2658 条的常用词表（2–4 字），采用正向最大匹配。它覆盖日常与常见技术词汇，
+但**不是完整词典**：词表外的中文会退化为逐字切分，而 TextRank 依赖词语共现构图，
+这会直接影响提取质量。
+
+对分词质量要求较高时，可通过 `tokenizer` 注入专业分词库（不使用内置词表）：
+
+```typescript
+import nodejieba from 'nodejieba';
+
+const tr4w = new TextRankKeyword({
+  tokenizer: (text) => nodejieba.cut(text),
+});
+```
+
+注入的分词器只需返回 `string[]`。由于该形式不携带词性，内部会将所有词标记为 `n`（名词），
+因此 `allowSpeechTags` 过滤在此模式下不会误删词。
+
 ## 算法原理
 
 TextRank算法基于Google的PageRank算法，将文本中的词语或句子看作图中的节点，通过计算节点的重要性来提取关键词或关键句子。
@@ -885,3 +904,10 @@ MIT License
 ## 致谢
 
 本项目参考了[TextRank4ZH](https://github.com/someus/TextRank4ZH)的实现思路，特此致谢。
+
+### 数据来源
+
+内置常用词表（2658 条）取自以下两个 MIT 项目，完整许可证见 [THIRD-PARTY-NOTICES.md](./THIRD-PARTY-NOTICES.md)：
+
+- [jieba](https://github.com/fxsjy/jieba) — Copyright (c) 2013 Sun Junyi
+- [HSK 3.0 词表](https://github.com/elkmovie/hsk30) — Copyright (c) 2021 Pleco Inc.，源自教育部《国际中文教育中文水平等级标准》(GF 0025-2021)

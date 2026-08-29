@@ -15,7 +15,8 @@
   },
   "files": [
     "dist",
-    "data"
+    "data",
+    "THIRD-PARTY-NOTICES.md"
   ],
   "scripts": {
     "build": "vite build && vite build --mode worker && vite build --mode sharedworker && pnpm run build:dts-compat",
