@@ -6,12 +6,17 @@
 
 ```
 examples/
+├── index.html        # 演示中心首页（部署后即 GitHub Pages 根页面）
 ├── browser/          # 浏览器演示
 │   ├── index.html   # 演示页面
 │   ├── demo.js      # 演示逻辑
 │   └── README.md    # 浏览器演示说明
-└── README.md        # 本文件
+├── worker/           # Web Worker 三级降级演示
+├── build-usage/      # 构建集成与 CDN 引入示例
+└── README.md         # 本文件
 ```
+
+> 本目录会被 `deploy-pages.yml` 原样 `cp` 到站点根目录，因此这里的文件即线上演示的实际内容，可直接用 `pnpm run serve` 或任意静态服务器本地预览。
 
 ## 🌐 浏览器演示
 

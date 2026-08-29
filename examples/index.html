@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TextRank4ZH-TS 在线演示</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+        
+        .header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+            margin-bottom: 20px;
+        }
+        
+        .badges {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 20px;
+        }
+        
+        .badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            backdrop-filter: blur(10px);
+        }
+        
+        .demo-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+        
+        .demo-card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+        
+        .demo-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+        }
+        
+        .demo-icon {
+            font-size: 3rem;
+            margin-bottom: 20px;
+            display: block;
+        }
+        
+        .demo-title {
+            font-size: 1.5rem;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+        
+        .demo-description {
+            color: #7f8c8d;
+            margin-bottom: 25px;
+            line-height: 1.6;
+        }
+        
+        .demo-features {
+            list-style: none;
+            margin-bottom: 25px;
+        }
+        
+        .demo-features li {
+            padding: 5px 0;
+            color: #34495e;
+        }
+        
+        .demo-features li:before {
+            content: "✅ ";
+            margin-right: 8px;
+        }
+        
+        .demo-button {
+            display: inline-block;
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .demo-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+        
+        .info-section {
+            background: white;
+            border-radius: 15px;
+            padding: 40px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            text-align: center;
+        }
+        
+        .info-section h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            font-size: 2rem;
+        }
+        
+        .info-section p {
+            color: #7f8c8d;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        
+        .tech-stack {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-top: 30px;
+        }
+        
+        .tech-item {
+            background: #f8f9fa;
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: #495057;
+            font-weight: 500;
+            border: 2px solid #e9ecef;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            color: white;
+            opacity: 0.8;
+        }
+        
+        .footer a {
+            color: white;
+            text-decoration: none;
+            border-bottom: 1px solid rgba(255,255,255,0.3);
+        }
+        
+        .footer a:hover {
+            border-bottom-color: white;
+        }
+        
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .demo-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .tech-stack {
+                flex-direction: column;
+                align-items: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 TextRank4ZH-TS</h1>
+            <p>基于 TextRank 算法的中文文本关键词提取和摘要生成库</p>
+            <div class="badges">
+                <span class="badge">🌐 浏览器兼容</span>
+                <span class="badge">⚡ 高性能</span>
+                <span class="badge">🎛️ 多线程支持</span>
+                <span class="badge">📦 零依赖</span>
+            </div>
+        </div>
+        
+        <div class="demo-grid">
+            <div class="demo-card">
+                <span class="demo-icon">🌐</span>
+                <div class="demo-title">浏览器基础演示</div>
+                <div class="demo-description">
+                    在浏览器中直接使用 TextRank4ZH-TS 进行关键词提取和文本摘要，展示核心功能。
+                </div>
+                <ul class="demo-features">
+                    <li>关键词提取</li>
+                    <li>关键短语生成</li>
+                    <li>文本摘要</li>
+                    <li>实时配置调整</li>
+                </ul>
+                <a href="./browser/" class="demo-button">立即体验</a>
+            </div>
+            
+            <div class="demo-card">
+                <span class="demo-icon">⚡</span>
+                <div class="demo-title">Web Worker 演示</div>
+                <div class="demo-description">
+                    使用 Web Worker 进行后台处理，避免阻塞主线程，展示多线程优化能力。
+                </div>
+                <ul class="demo-features">
+                    <li>多线程处理</li>
+                    <li>智能降级机制</li>
+                    <li>并发任务管理</li>
+                    <li>性能监控</li>
+                </ul>
+                <a href="./worker/" class="demo-button">查看演示</a>
+            </div>
+            
+            <div class="demo-card">
+                <span class="demo-icon">🔧</span>
+                <div class="demo-title">构建集成示例</div>
+                <div class="demo-description">
+                    展示如何在不同的构建系统中集成 TextRank4ZH-TS，包括各种模块格式。
+                </div>
+                <ul class="demo-features">
+                    <li>IIFE 全局引入</li>
+                    <li>ES Module 导入</li>
+                    <li>CommonJS 支持</li>
+                    <li>CDN 直接使用</li>
+                </ul>
+                <a href="./build-usage/" class="demo-button">查看示例</a>
+            </div>
+        </div>
+        
+        <div class="info-section">
+            <h2>🛠️ 技术特性</h2>
+            <p>TextRank4ZH-TS 是用 TypeScript 重写的 TextRank 算法实现，专门针对中文文本优化，提供完整的浏览器支持和现代化的开发体验。</p>
+            <p>支持函数式错误处理、主线程调度、多种运行模式，确保在各种环境下都能稳定高效运行。</p>
+            
+            <div class="tech-stack">
+                <span class="tech-item">TypeScript</span>
+                <span class="tech-item">Web Workers</span>
+                <span class="tech-item">ES2020+</span>
+                <span class="tech-item">零外部依赖</span>
+                <span class="tech-item">函数式编程</span>
+                <span class="tech-item">PageRank 算法</span>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>
+                📚 <a href="https://github.com/ChasLui/textrank4zh-ts">GitHub 仓库</a> |
+                📖 <a href="https://github.com/ChasLui/textrank4zh-ts#readme">API 文档</a> |
+                📦 <a href="https://www.npmjs.com/package/textrank4zh-ts">npm 包</a>
+            </p>
+            <p style="margin-top: 20px; font-size: 0.9rem;">
+                MIT License • 由 <a href="https://github.com/ChasLui">ChasLui</a> 开发维护
+            </p>
+        </div>
+    </div>
+</body>
+</html>
