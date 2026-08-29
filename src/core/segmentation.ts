@@ -22,12 +22,14 @@ export class WordSegmentation {
   private stopWords: Set<string>;
   private allowSpeechTags: Set<string>;
   private jieba: Segmenter | undefined;
+  private customTokenizer: ((text: string) => string[]) | undefined;
 
   constructor(config: SegmentationConfig = {}) {
-    const { stopWords, allowSpeechTags = DEFAULT_CONFIG.ALLOW_SPEECH_TAGS } = config;
+    const { stopWords, allowSpeechTags = DEFAULT_CONFIG.ALLOW_SPEECH_TAGS, tokenizer } = config;
 
     this.allowSpeechTags = new Set(allowSpeechTags);
     this.stopWords = this.loadStopWords(stopWords);
+    this.customTokenizer = tokenizer;
 
     // 初始化分词器，失败时使用默认fallback
     const initResult = this.initJieba();
@@ -42,6 +44,18 @@ export class WordSegmentation {
   private initJieba(): TextRankResult<void> {
     const result = safeSync(
       () => {
+        const custom = this.customTokenizer;
+        if (custom) {
+          // 注入的分词器只提供切分，不提供词性；统一标为 'n'（名词），
+          // 该标记在默认 allowSpeechTags 内，因此词性过滤不会误删词
+          this.jieba = {
+            cut: custom,
+            tag: (text: string) => custom(text).map((word) => ({ word, pos: 'n' })),
+          };
+          debug('使用注入的自定义分词器');
+          return;
+        }
+
         // 使用静态导入的轻量级分词器
         this.jieba = jieba;
         debug('使用内置轻量级分词器');

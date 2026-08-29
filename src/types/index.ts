@@ -78,6 +78,16 @@ export interface SegmentationConfig {
   stopWords?: string[];
   allowSpeechTags?: string[];
   delimiters?: string[];
+  /**
+   * 自定义分词器。内置分词器只带一份小词表，对其覆盖范围外的中文会退化为逐字切分；
+   * 需要更高分词质量时可注入 nodejieba、segmentit 等专业分词库：
+   *
+   *   new TextRankKeyword({ tokenizer: (text) => nodejieba.cut(text) })
+   *
+   * 注入后不再使用内置词表。由于该形式不提供词性，所有词会被标记为 'n'（名词），
+   * 使 allowSpeechTags 过滤在此模式下不会误删词。
+   */
+  tokenizer?: ((text: string) => string[]) | undefined;
 }
 
 /**
