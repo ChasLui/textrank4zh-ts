@@ -14,7 +14,7 @@ import { Segmentation } from './segmentation';
 import { sortSentences, getDefaultSimilarity, debug } from '../utils';
 import { safeSync, errOf, validateInput } from '../utils/result-helpers';
 import { AsyncAnalysisExecutor } from '../utils/async-analysis';
-import { Result } from 'typescript-result';
+import { Result } from '../utils/result';
 
 /**
  * TextRank 句子摘要生成类

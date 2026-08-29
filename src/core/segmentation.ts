@@ -4,7 +4,7 @@ import { debug } from '../utils';
 import { STOP_WORDS } from '../data/stopwords';
 import { jieba } from '../utils/jieba-simple';
 import { safeSync } from '../utils/result-helpers';
-import { Result } from 'typescript-result';
+import { Result } from '../utils/result';
 
 /**
  * 分词器接口：内置 SimpleJieba 与 fallback 分词器的公共形状

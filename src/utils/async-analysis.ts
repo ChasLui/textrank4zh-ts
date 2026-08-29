@@ -11,7 +11,7 @@ import type {
   AsyncTextRankResult,
 } from '../types';
 import { ErrorType } from '../types';
-import { errOf } from './result-helpers';
+import { err, errOf } from './result-helpers';
 
 /**
  * 异步执行工厂
@@ -318,7 +318,7 @@ export class AsyncAnalysisExecutor {
         reportProgress
       );
       if (!segmentationResult.ok) {
-        return segmentationResult;
+        return err(segmentationResult.error);
       }
 
       // 阶段2: 构建图
@@ -329,7 +329,7 @@ export class AsyncAnalysisExecutor {
         options?.itemCount
       );
       if (!graphResult.ok) {
-        return graphResult;
+        return err(graphResult.error);
       }
 
       // 阶段3: PageRank计算
@@ -340,7 +340,7 @@ export class AsyncAnalysisExecutor {
         options?.maxIterations
       );
       if (!pageRankResult.ok) {
-        return pageRankResult;
+        return err(pageRankResult.error);
       }
 
       // 阶段4: 排序

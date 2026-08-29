@@ -83,9 +83,6 @@
   },
   "homepage": "https://github.com/ChasLui/textrank4zh-ts#readme",
   "sideEffects": false,
-  "dependencies": {
-    "typescript-result": "^3.5.2"
-  },
   "packageManager": "pnpm@11.24.0",
   "volta": {
     "node": "24.20.0",

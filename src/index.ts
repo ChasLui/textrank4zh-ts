@@ -25,7 +25,8 @@ export {
 // 导出类型定义
 export * from './types';
 
-// 导出 Result 辅助函数
+// 导出 Result 类型与辅助函数
+export type { Result, Ok, Err, ResultOps } from './utils/result';
 export * from './utils/result-helpers';
 
 // 导出工具函数

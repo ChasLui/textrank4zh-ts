@@ -1,23 +1,6 @@
 // 使用 jsDelivr CDN 加载的 TextRank4ZH-TS 库 (IIFE版本，npm包)
 // CDN URL: https://cdn.jsdelivr.net/npm/textrank4zh-ts/dist/index.iife.js
 
-// 提供 typescript-result 兼容的全局实现
-window.typescriptResult = {
-  Result: class Result {
-    constructor(ok, value, error) {
-      this.ok = ok;
-      this.value = value;
-      this.error = error;
-    }
-    static ok(value) { return new this(true, value, null); }
-    static error(error) { return new this(false, null, error); }
-    isOk() { return this.ok; }
-    isErr() { return !this.ok; }
-  },
-  ok: (value) => window.typescriptResult.Result.ok(value),
-  err: (error) => window.typescriptResult.Result.error(error)
-};
-
 // 全局变量
 let keywordAnalyzer = null;
 let sentenceAnalyzer = null;

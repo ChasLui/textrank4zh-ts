@@ -7,10 +7,6 @@ settings:
 importers:
 
   .:
-    dependencies:
-      typescript-result:
-        specifier: ^3.5.2
-        version: 3.5.2
     devDependencies:
       '@microsoft/api-extractor':
         specifier: ^7.59.0
@@ -2186,10 +2182,6 @@ packages:
   typedarray@0.0.6:
     resolution: {integrity: sha512-/aCDEGatGvZ2BIk+HmLf4ifCJFwvKFNb9/JeZPMulfgFracn9QFcAf5GO8B/mweUjSoblS5In0cWhqpfs/5PQA==}
 
-  typescript-result@3.5.2:
-    resolution: {integrity: sha512-kYBOXx/WOdwnfRfkOgEy+Or0VKxR9No1znb+5jPBYplksjx/koluC/OwIgBgYCCPgukxMuwXqMcv1qSDlvrlFA==}
-    engines: {node: '>=18'}
-
   typescript@5.9.3:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
@@ -4293,8 +4285,6 @@ snapshots:
   type-fest@4.41.0: {}
 
   typedarray@0.0.6: {}
-
-  typescript-result@3.5.2: {}
 
   typescript@5.9.3: {}
 

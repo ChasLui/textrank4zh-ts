@@ -589,7 +589,7 @@ interface WorkerStatus {
 
 ### Result 类型系统
 
-本项目采用 `typescript-result` 库实现函数式错误处理，完全消除传统 try/catch 异常处理的问题。
+本项目内置轻量 `Result` 类型实现函数式错误处理，完全消除传统 try/catch 异常处理的问题，且不引入任何运行时依赖。
 
 #### 基本用法
 
@@ -884,7 +884,7 @@ TextRank算法基于Google的PageRank算法，将文本中的词语或句子看�
 ## 依赖
 
 ### 运行时依赖
-- `typescript-result@^3.5.2` - 函数式错误处理
+无。`Result` 类型由本库内置实现（`src/utils/result.ts`）。
 
 ### 开发依赖
 - TypeScript: 类型支持

@@ -53,7 +53,7 @@ export default defineConfig(({ mode }) => {
       },
       rolldownOptions: {
         output: { exports: 'named' },
-        // 不设 external：typescript-result 被内联，等价于 unbuild 的 inlineDependencies
+        // 不设 external：本库无运行时依赖，全部代码打进产物
       },
     },
   };
