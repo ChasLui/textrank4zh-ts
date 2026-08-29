@@ -13,6 +13,7 @@ permissions:
   actions: read      # 允许读取actions状态
   packages: write    # 允许发布packages
   pull-requests: read # 允许读取PR信息
+  id-token: write    # npm Trusted Publisher (OIDC) 换取发布凭证
 
 env:
   PNPM_CACHE_FOLDER: .pnpm-store
@@ -119,36 +120,16 @@ jobs:
           echo "🏗️ Building project..."
           pnpm run build
       
-      - name: Release with appropriate version bump
+      # 版本号由 release-it 依据「全部未发布 commit」推断，而非仅看最新一条。
+      # check-release 只负责决定「要不要发」，不再决定「发哪一级」——否则一条 fix
+      # 会把累积的 feat 降级成 patch。
+      # npm 认证走 Trusted Publisher (OIDC)，不再需要 NPM_TOKEN。
+      - name: Release
         run: |
-          RELEASE_TYPE="${{ needs.check-release.outputs.release-type }}"
-          COMMIT_MSG="${{ needs.check-release.outputs.commit-message }}"
-          
-          echo "🚀 Starting $RELEASE_TYPE release..."
-          echo "📝 Triggered by commit: $COMMIT_MSG"
-          
-          case $RELEASE_TYPE in
-            "major")
-              echo "🚨 Performing MAJOR release (breaking changes)"
-              pnpm run release:major -- --ci
-              ;;
-            "minor")
-              echo "✨ Performing MINOR release (new features)"
-              pnpm run release:minor -- --ci
-              ;;
-            "patch")
-              echo "🐛 Performing PATCH release (bug fixes)"
-              pnpm run release:patch -- --ci
-              ;;
-            *)
-              echo "❌ Unknown release type: $RELEASE_TYPE"
-              exit 1
-              ;;
-          esac
+          echo "📝 Triggered by commit: ${{ needs.check-release.outputs.commit-message }}"
+          pnpm exec release-it --ci
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
       
       - name: Notify release completion
         if: success()

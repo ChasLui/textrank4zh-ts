@@ -168,12 +168,12 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      # dry-run 只验证 release 流程本身，不发包，因此跳过 npm 认证检查。
+      # 真实发布的认证走 Trusted Publisher (OIDC)，见 release.yml。
       - name: Test release workflow (dry run)
-        run: pnpm run release:dry
+        run: pnpm exec release-it --dry-run --ci --npm.skipChecks
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
   # 状态检查总结
   ci-success:
